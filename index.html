@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { 
+        font-family: sans-serif; 
+        text-align: center; 
+        color: #333; 
+        background-color: #f8f9fa;
+        margin: 0;
+        padding-top: 15px;
+    }
+    h2 { margin: 5px 0; }
+    .instructions { font-size: 14px; margin-bottom: 5px; color: #666; }
+    #scoreBoard { color: #E53935; font-size: 24px; margin: 10px 0; font-weight: bold; }
+    
+    #gameContainer {
+        position: relative;
+        display: inline-block;
+    }
+
+    #shapeCanvas {
+      background-color: #1e1e1e;
+      box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
+      border-radius: 8px;
+      cursor: crosshair;
+    }
+
+    #levelControlBox {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background-color: #333;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .level-btn {
+      background-color: #555;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 30px;
+      height: 30px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .level-btn:hover { background-color: #777; }
+    .level-btn:active { background-color: #999; }
+
+    .action-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+    }
+    
+    .action-btn:hover { background-color: #45a049; }
+    
+    .reset-btn { background-color: #E53935; }
+    .reset-btn:hover { background-color: #d32f2f; }
+
+    #levelDisplay {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 8px 0;
+    }
+    
+    .level-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+
+  </style>
+</head>
+<body>
+  <h2>Shape Hunter Match</h2>
+  <div class="instructions">
+    Look at the <strong>2 Targets at the top</strong>. Click their matches in the moving field below to score points!
+  </div>
+  <div id="scoreBoard">Score: 0</div>
+  
+  <div id="gameContainer">
+    <div id="levelControlBox">
+      <button id="startBtn" class="action-btn" onclick="toggleGame()">Start</button>
+      
+      <div class="level-title" style="margin-top: 15px;">Level</div>
+      <button class="level-btn" onclick="changeLevel(1)">+</button>
+      <div id="levelDisplay">5</div>
+      <button class="level-btn" onclick="changeLevel(-1)">-</button>
+      
+      <button class="action-btn reset-btn" style="margin-top: 15px;" onclick="resetScore()">Reset</button>
+    </div>
+
+    <canvas id="shapeCanvas" width="800" height="650"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("shapeCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // 14 distinct colors to guarantee 12 shapes can all be totally unique colors
+    const colors = [
+        "#FF3B30", "#007AFF", "#34C759", "#FFCC00", 
+        "#FF9500", "#AF52DE", "#FF2D55", "#5AC8FA", 
+        "#A2845E", "#00C7BE", "#32ADE6", "#FF3366",
+        "#8B4513", "#4B0082" 
+    ];
+    const shapes = ["square", "circle", "triangle", "hexagon", "octagon", "rectangle"];
+    
+    const allCombos = [];
+    for (let s of shapes) {
+        for (let c of colors) {
+            allCombos.push({shape: s, color: c});
+        }
+    }
+
+    const NUM_SHAPES = 12;
+    const SHAPE_SIZE = 60; 
+    const MIN_DISTANCE = 85; 
+    const FIELD_MIN_Y = 180;
+    const FIELD_MAX_Y = canvas.height - SHAPE_SIZE;
+
+    let activeItems = [];
+    let score = 0;
+    let currentLevel = 5; 
+
+    let target1 = {shape: '', color: '', found: false};
+    let target2 = {shape: '', color: '', found: false};
+    let targetsTimeToUpdate = 0;
+    let forceTargetReset = true;
+    let celebrating = false; 
+
+    // Time keeping for Pause/Play
+    let isPlaying = false;
+    let lastRealTime = performance.now();
+    let gameTime = 0; // Only increases when playing
+
+    // --- AUDIO SYSTEM ---
+    let audioCtx;
+    function initAudio() {
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function playSound(type) {
+        initAudio();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (type === 'positive') {
+            // First correct click (short ding)
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            oscillator.frequency.setValueAtTime(1108.73, audioCtx.currentTime + 0.05); 
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.15);
+            
+        } else if (type === 'win') {
+            // Second correct click (Longer, rewarding arpeggio)
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+            oscillator.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+            oscillator.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); // C6
+
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.6);
+
+        } else if (type === 'negative') {
+            // Wrong click
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+            oscillator.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.2);
+        }
+    }
+
+    // --- UI CONTROLS ---
+    function toggleGame() {
+        isPlaying = !isPlaying;
+        let btn = document.getElementById("startBtn");
+        if (isPlaying) {
+            btn.innerText = "Stop";
+            btn.style.backgroundColor = "#ff9800"; // Orange when acting as Stop
+            initAudio(); // Initialize audio context on start click
+        } else {
+            btn.innerText = "Start";
+            btn.style.backgroundColor = "#4CAF50"; // Green when acting as Start
+        }
+    }
+
+    function resetScore() {
+        score = 0;
+        document.getElementById('scoreBoard').innerHTML = "Score: " + score;
+    }
+
+    function changeLevel(change) {
+        currentLevel += change;
+        if (currentLevel < 1) currentLevel = 1;
+        if (currentLevel > 10) currentLevel = 10;
+        document.getElementById("levelDisplay").innerText = currentLevel;
+    }
+
+    function getSpeedMultiplier() {
+        if (currentLevel === 5) return 1.0;
+        if (currentLevel > 5) {
+            // Changed from 10% to 15% faster
+            return Math.pow(0.85, currentLevel - 5);
+        } else {
+            // Changed from 10% to 15% slower
+            return Math.pow(1.15, 5 - currentLevel);
+        }
+    }
+
+    // --- DRAWING FUNCTIONS ---
+    function drawPolygon(ctx, x, y, radius, sides) {
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+            const angle = i * 2 * Math.PI / sides - Math.PI / 2; 
+            ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function drawShape(type, color, x, y) {
+        ctx.fillStyle = color;
+        const size = SHAPE_SIZE;
+        
+        if (type === "square") {
+            ctx.fillRect(x - size/2, y - size/2, size, size);
+        } else if (type === "rectangle") {
+            ctx.fillRect(x - (size*0.75), y - (size*0.45), size*1.5, size*0.9);
+        } else if (type === "circle") {
+            ctx.beginPath();
+            ctx.arc(x, y, size/2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (type === "triangle") {
+            drawPolygon(ctx, x, y + size/6, size/1.6, 3);
+        } else if (type === "hexagon") {
+            drawPolygon(ctx, x, y, size/1.75, 6);
+        } else if (type === "octagon") {
+            drawPolygon(ctx, x, y, size/1.75, 8);
+        }
+    }
+
+    // --- GRID GENERATION ---
+    function getRandomCombo(excludeIndex) {
+        // Find ALL colors currently used on the board
+        let usedColors = activeItems
+            .filter((item, idx) => idx !== excludeIndex && item.color)
+            .map(item => item.color);
+            
+        // Make sure the new combo uses a color that is NOT currently on the board
+        let availableCombos = allCombos.filter(c => !usedColors.includes(c.color));
+        return availableCombos[Math.floor(Math.random() * availableCombos.length)];
+    }
+
+    function getValidPosition(excludeIndex) {
+        let attempts = 0;
+        let currentMinDist = MIN_DISTANCE;
+        
+        while (attempts < 150) {
+            if (attempts > 100) currentMinDist = MIN_DISTANCE * 0.7; 
+
+            let rx = SHAPE_SIZE + Math.random() * (canvas.width - SHAPE_SIZE * 2);
+            let ry = FIELD_MIN_Y + Math.random() * (FIELD_MAX_Y - FIELD_MIN_Y);
+            
+            let overlap = false;
+            for (let i = 0; i < activeItems.length; i++) {
+                if (i === excludeIndex) continue; 
+                if (!activeItems[i].x) continue;  
+                
+                let dx = rx - activeItems[i].x;
+                let dy = ry - activeItems[i].y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < currentMinDist) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (!overlap) return {x: rx, y: ry};
+            attempts++;
+        }
+        return {x: -100, y: -100}; 
+    }
+
+    // INITIALIZE SHAPES
+    for (let i = 0; i < NUM_SHAPES; i++) {
+        activeItems.push({});
+        let combo = getRandomCombo(i);
+        let pos = getValidPosition(i);
+        
+        activeItems[i] = {
+            shape: combo.shape,
+            color: combo.color,
+            x: pos.x,
+            y: pos.y,
+            timeToUpdate: Math.random() * 2000 
+        };
+    }
+
+    // --- CLICK EVENTS ---
+    canvas.addEventListener('mousedown', function(event) {
+        if (!isPlaying || celebrating) return; 
+
+        initAudio();
+
+        const rect = canvas.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+
+        let hitCorrect = false;
+
+        for (let i = 0; i < activeItems.length; i++) {
+            let item = activeItems[i];
+            let dx = clickX - item.x;
+            let dy = clickY - item.y;
+            
+            if (Math.sqrt(dx*dx + dy*dy) < 40) {
+                
+                if (!target1.found && item.shape === target1.shape && item.color === target1.color) {
+                    target1.found = true;
+                    hitCorrect = true;
+                }
+                else if (!target2.found && item.shape === target2.shape && item.color === target2.color) {
+                    target2.found = true;
+                    hitCorrect = true;
+                }
+                break; 
+            }
+        }
+
+        // Check if BOTH targets are found
+        if (target1.found && target2.found) {
+            playSound('win'); // The NEW longer win sound
+            celebrating = true;
+            score++;
+            document.getElementById('scoreBoard').innerHTML = "Score: " + score;
+            
+            // INCREASED delay to 0.5 SECONDS!
+            setTimeout(() => {
+                forceTargetReset = true; 
+                celebrating = false;
+            }, 500);
+            
+        } else if (hitCorrect) {
+            playSound('positive'); // Short ding for the 1st correct click
+        } else {
+            playSound('negative'); // Buzzer for wrong click
+        }
+    });
+
+    function drawTarget(target, x, y) {
+        if (target.found) {
+            ctx.beginPath();
+            ctx.arc(x, y, SHAPE_SIZE - 5, 0, Math.PI*2);
+            ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
+            ctx.fill();
+            ctx.strokeStyle = "#4CAF50";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+        drawShape(target.shape, target.color, x, y);
+    }
+
+    // --- MAIN ANIMATION LOOP ---
+    function animate(timestamp) {
+        // Calculate the time difference so the game pauses correctly
+        let deltaTime = timestamp - lastRealTime;
+        lastRealTime = timestamp;
+        
+        if (isPlaying) {
+            gameTime += deltaTime;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        let speedMultiplier = getSpeedMultiplier();
+
+        if (isPlaying && (gameTime > targetsTimeToUpdate || forceTargetReset)) {
+            forceTargetReset = false;
+            
+            let idx1 = Math.floor(Math.random() * NUM_SHAPES);
+            let idx2 = Math.floor(Math.random() * NUM_SHAPES);
+            while (idx1 === idx2) {
+                idx2 = Math.floor(Math.random() * NUM_SHAPES);
+            }
+
+            target1 = { shape: activeItems[idx1].shape, color: activeItems[idx1].color, found: false };
+            target2 = { shape: activeItems[idx2].shape, color: activeItems[idx2].color, found: false };
+
+            let baseDuration = 2500 + Math.random() * 1500;
+            let finalDuration = baseDuration * speedMultiplier;
+            
+            targetsTimeToUpdate = gameTime + finalDuration;
+
+            // Lock these from changing while they are targets
+            activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
+            activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
+        }
+
+        // Draw Top Area UI
+        ctx.fillStyle = "#2c2c2c";
+        ctx.fillRect(0, 0, canvas.width, 140); 
+        ctx.fillStyle = "#555";
+        ctx.fillRect(0, 140, canvas.width, 4); 
+        
+        ctx.fillStyle = "#ddd";
+        ctx.font = "20px Arial";
+        ctx.fillText("FIND THESE TWO:", 170, 80);
+
+        drawTarget(target1, 400, 70);
+        drawTarget(target2, 600, 70);
+
+        // Draw Moving Shapes
+        for (let i = 0; i < activeItems.length; i++) {
+            let item = activeItems[i];
+            
+            if (isPlaying && !celebrating && gameTime > item.timeToUpdate) {
+                let newCombo = getRandomCombo(i);
+                let newPos = getValidPosition(i);
+                
+                if (newPos.x !== -100) { 
+                    item.shape = newCombo.shape;
+                    item.color = newCombo.color;
+                    item.x = newPos.x;
+                    item.y = newPos.y;
+                }
+                
+                let baseJumpDelay = 1000 + Math.random() * 2000;
+                item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
+            }
+            
+            drawShape(item.shape, item.color, item.x, item.y);
+        }
+
+        // Draw Pause overlay if stopped
+        if (!isPlaying) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+            ctx.fillRect(0, 144, canvas.width, canvas.height - 144);
+            ctx.fillStyle = "white";
+            ctx.font = "bold 30px Arial";
+            ctx.fillText("CLICK START TO PLAY", 235, 400);
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
