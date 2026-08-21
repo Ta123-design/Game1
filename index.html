@@ -251,31 +251,36 @@
     let celebrating = false; 
 
     let gameState = 'STOPPED';
-    let lastRealTime = performance.now();
+    let lastRealTime = 0;
     let gameTime = 0; 
     
     let timeSetting = 30; 
     let timeLeft = 30;    
     let timeInterval = null;
 
-    // --- SAFARI FIX: Safe Resizing Logic ---
-    // Instead of ResizeObserver (which crashes Safari), we check size every frame
-    function resizeCanvasIfNeeded() {
-        const width = canvasWrapper.clientWidth;
-        const height = canvasWrapper.clientHeight;
-        
-        if (canvas.width !== width || canvas.height !== height) {
-            canvas.width = width;
-            canvas.height = height;
-            FIELD_MAX_Y = height - SHAPE_SIZE;
+    // --- SAFARI FIX: requestAnimationFrame inside ResizeObserver ---
+    // This completely prevents the "ResizeObserver loop limit exceeded" crash on iOS
+    const resizeObserver = new ResizeObserver(entries => {
+        window.requestAnimationFrame(() => {
+            if (!entries || entries.length === 0) return;
+            const entry = entries[0];
+            const newWidth = entry.contentRect.width;
+            const newHeight = entry.contentRect.height;
             
-            if (window.innerWidth > 960) {
-                controlsBox.style.width = width + "px";
-            } else {
-                controlsBox.style.width = "100%";
+            if (newWidth > 0 && newHeight > 0) {
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                FIELD_MAX_Y = newHeight - SHAPE_SIZE;
+                
+                if (window.innerWidth > 960) {
+                    controlsBox.style.width = newWidth + "px";
+                } else {
+                    controlsBox.style.width = "100%";
+                }
             }
-        }
-    }
+        });
+    });
+    resizeObserver.observe(canvasWrapper);
 
     let audioCtx;
     function initAudio() {
@@ -455,4 +460,169 @@
         currentLevel += change;
         if (currentLevel < 1) currentLevel = 10;
         if (currentLevel > 10) currentLevel = 1;
-        document.getElementById("levelDispla
+        document.getElementById("levelDisplay").innerText = currentLevel;
+        calculateLevelTarget(); 
+    }
+
+    function getSpeedMultiplier() {
+        if (currentLevel === 5) return 1.0;
+        if (currentLevel > 5) return Math.pow(0.85, currentLevel - 5);
+        else return Math.pow(1.15, 5 - currentLevel);
+    }
+
+    function drawPolygon(ctx, x, y, radius, sides) {
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+            const angle = i * 2 * Math.PI / sides - Math.PI / 2; 
+            ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function drawShape(type, color, x, y) {
+        ctx.fillStyle = color;
+        const size = SHAPE_SIZE;
+        
+        if (type === "square") {
+            ctx.fillRect(x - size/2, y - size/2, size, size);
+        } else if (type === "rectangle") {
+            ctx.fillRect(x - (size*0.75), y - (size*0.45), size*1.5, size*0.9);
+        } else if (type === "circle") {
+            ctx.beginPath();
+            ctx.arc(x, y, size/2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (type === "triangle") {
+            drawPolygon(ctx, x, y + size/6, size/1.6, 3);
+        } else if (type === "hexagon") {
+            drawPolygon(ctx, x, y, size/1.75, 6);
+        } else if (type === "octagon") {
+            let r = size / 1.5; 
+            ctx.beginPath();
+            ctx.moveTo(x, y - r);
+            ctx.lineTo(x + r*0.866, y + r*0.5);
+            ctx.lineTo(x - r*0.866, y + r*0.5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x, y + r);
+            ctx.lineTo(x + r*0.866, y - r*0.5);
+            ctx.lineTo(x - r*0.866, y - r*0.5);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    function getRandomCombo(excludeIndex) {
+        let usedCombos = activeItems
+            .filter((item, idx) => idx !== excludeIndex && item.shape && item.color)
+            .map(item => item.shape + item.color);
+            
+        let availableCombos = allCombos.filter(c => !usedCombos.includes(c.shape + c.color));
+        return availableCombos[Math.floor(Math.random() * availableCombos.length)];
+    }
+
+    function getValidPosition(excludeIndex) {
+        let attempts = 0;
+        let currentMinDist = Math.min(200, canvas.width / 2.5); 
+        
+        let rxRange = Math.max(10, canvas.width - SHAPE_SIZE * 3);
+        let ryRange = Math.max(10, FIELD_MAX_Y - FIELD_MIN_Y - SHAPE_SIZE * 3);
+        
+        while (attempts < 250) {
+            if (attempts > 50) currentMinDist *= 0.95; 
+            
+            let rx = (SHAPE_SIZE * 1.5) + Math.random() * rxRange;
+            let ry = FIELD_MIN_Y + (SHAPE_SIZE * 1.5) + Math.random() * ryRange;
+            
+            let overlap = false;
+            for (let i = 0; i < activeItems.length; i++) {
+                if (i === excludeIndex) continue; 
+                if (!activeItems[i].x) continue;  
+                
+                let dx = rx - activeItems[i].x;
+                let dy = ry - activeItems[i].y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < currentMinDist) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (!overlap) return {x: rx, y: ry};
+            attempts++;
+        }
+        return {x: canvas.width/2, y: FIELD_MIN_Y + 100}; 
+    }
+
+    // --- UNIFIED TOUCH & MOUSE HANDLER ---
+    function handleTap(event) {
+        if (event.type === 'touchstart') {
+            event.preventDefault();
+        }
+
+        if (gameState !== 'PLAYING' || celebrating) return; 
+
+        initAudio();
+        const rect = canvas.getBoundingClientRect();
+        
+        let clientX, clientY;
+        if (event.touches && event.touches.length > 0) {
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+        } else {
+            clientX = event.clientX;
+            clientY = event.clientY;
+        }
+
+        const clickX = (clientX - rect.left) * (canvas.width / rect.width);
+        const clickY = (clientY - rect.top) * (canvas.height / rect.height);
+
+        let hitCorrect = false;
+
+        for (let i = 0; i < activeItems.length; i++) {
+            let item = activeItems[i];
+            let dx = clickX - item.x;
+            let dy = clickY - item.y;
+            
+            if (Math.sqrt(dx*dx + dy*dy) <= SHAPE_SIZE / 2) {
+                if (!target1.found && item.shape === target1.shape && item.color === target1.color) {
+                    target1.found = true;
+                    item.found = true;
+                    hitCorrect = true;
+                }
+                else if (!target2.found && item.shape === target2.shape && item.color === target2.color) {
+                    target2.found = true;
+                    item.found = true;
+                    hitCorrect = true;
+                }
+                break; 
+            }
+        }
+
+        if (target1.found && target2.found) {
+            score++;
+            levelScore++;
+            document.getElementById('scoreDisplay').innerHTML = score;
+            
+            if (levelScore >= levelTarget) {
+                playSound('timeout_win'); 
+                celebrating = true;
+                
+                setTimeout(() => {
+                    currentLevel++;
+                    if (currentLevel > 10) {
+                        alert("Congratulations! You beat all 10 levels!");
+                        handleStopClick();
+                        return;
+                    }
+                    
+                    levelScore = 0;
+                    timeLeft = timeSetting;
+                    document.getElementById('levelDisplay').innerText = currentLevel;
+                    document.getElementById('timeDisplay').innerText = timeLeft;
+                    calculateLevelTarget();
+                    
+                    gameState = 'STOPPED';
+                    clearInterval(timeInterval);
