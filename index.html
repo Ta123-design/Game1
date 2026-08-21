@@ -96,7 +96,7 @@
         width: 100%;
         max-width: 960px;
         height: 75vh; /* Responsive height for mobile */
-        min-width: 300px; /* Lowered from 600px so it fits on iPhone */
+        min-width: 300px; 
         min-height: 400px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
         border-radius: 8px;
@@ -214,6 +214,8 @@
   <script>
     const canvas = document.getElementById("shapeCanvas");
     const ctx = canvas.getContext("2d");
+    const canvasWrapper = document.getElementById("canvasWrapper");
+    const controlsBox = document.getElementById("controlsBox");
 
     const colors = [
         "#007AFF", "#FF0000", "#FFFF00", "#34C759", 
@@ -256,22 +258,24 @@
     let timeLeft = 30;    
     let timeInterval = null;
 
-    const canvasWrapper = document.getElementById("canvasWrapper");
-    const controlsBox = document.getElementById("controlsBox");
-    const resizeObserver = new ResizeObserver(entries => {
-        for (let entry of entries) {
-            canvas.width = entry.contentRect.width;
-            canvas.height = entry.contentRect.height;
-            FIELD_MAX_Y = canvas.height - SHAPE_SIZE;
-            // Only sync width if we are on a larger screen to prevent overflow
+    // --- SAFARI FIX: Safe Resizing Logic ---
+    // Instead of ResizeObserver (which crashes Safari), we check size every frame
+    function resizeCanvasIfNeeded() {
+        const width = canvasWrapper.clientWidth;
+        const height = canvasWrapper.clientHeight;
+        
+        if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+            FIELD_MAX_Y = height - SHAPE_SIZE;
+            
             if (window.innerWidth > 960) {
-                controlsBox.style.width = entry.contentRect.width + "px";
+                controlsBox.style.width = width + "px";
             } else {
                 controlsBox.style.width = "100%";
             }
         }
-    });
-    resizeObserver.observe(canvasWrapper);
+    }
 
     let audioCtx;
     function initAudio() {
@@ -451,51 +455,4 @@
         currentLevel += change;
         if (currentLevel < 1) currentLevel = 10;
         if (currentLevel > 10) currentLevel = 1;
-        document.getElementById("levelDisplay").innerText = currentLevel;
-        calculateLevelTarget(); 
-    }
-
-    function getSpeedMultiplier() {
-        if (currentLevel === 5) return 1.0;
-        if (currentLevel > 5) return Math.pow(0.85, currentLevel - 5);
-        else return Math.pow(1.15, 5 - currentLevel);
-    }
-
-    function drawPolygon(ctx, x, y, radius, sides) {
-        ctx.beginPath();
-        for (let i = 0; i < sides; i++) {
-            const angle = i * 2 * Math.PI / sides - Math.PI / 2; 
-            ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
-        }
-        ctx.closePath();
-        ctx.fill();
-    }
-
-    function drawShape(type, color, x, y) {
-        ctx.fillStyle = color;
-        const size = SHAPE_SIZE;
-        
-        if (type === "square") {
-            ctx.fillRect(x - size/2, y - size/2, size, size);
-        } else if (type === "rectangle") {
-            ctx.fillRect(x - (size*0.75), y - (size*0.45), size*1.5, size*0.9);
-        } else if (type === "circle") {
-            ctx.beginPath();
-            ctx.arc(x, y, size/2, 0, Math.PI * 2);
-            ctx.fill();
-        } else if (type === "triangle") {
-            drawPolygon(ctx, x, y + size/6, size/1.6, 3);
-        } else if (type === "hexagon") {
-            drawPolygon(ctx, x, y, size/1.75, 6);
-        } else if (type === "octagon") {
-            let r = size / 1.5; 
-            ctx.beginPath();
-            ctx.moveTo(x, y - r);
-            ctx.lineTo(x + r*0.866, y + r*0.5);
-            ctx.lineTo(x - r*0.866, y + r*0.5);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(x, y + r);
-            ctx.lineTo(x + r*0.
+        document.getElementById("levelDispla
