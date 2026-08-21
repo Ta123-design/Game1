@@ -6,13 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Shape Hunter Match</title>
   <style>
-    /* GLOBAL TOUCH OPTIMIZATIONS */
-    * {
-        -webkit-tap-highlight-color: transparent;
-        user-select: none;
-        -webkit-user-select: none;
-    }
-
     body { 
         font-family: sans-serif; 
         text-align: center; 
@@ -20,17 +13,22 @@
         background-color: #f8f9fa;
         margin: 0;
         padding-top: 15px;
-        /* Prevent pull-to-refresh on mobile */
-        overscroll-behavior-y: contain; 
+        overscroll-behavior-y: contain; /* Prevents pull-to-refresh */
     }
     h2 { margin: 5px 0; font-size: 32px; }
     .instructions { font-size: 18px; margin-bottom: 10px; color: #666; }
     
+    /* Applies touch optimizations ONLY to the game area so Safari doesn't lock */
     #gameContainer {
         display: flex;
         flex-direction: column;
         align-items: center;
         width: 100%;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        padding: 0 10px;
+        box-sizing: border-box;
     }
 
     #controlsBox {
@@ -43,7 +41,8 @@
         gap: 20px;
         margin-bottom: 15px;
         box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
-        width: 960px; 
+        width: 100%;
+        max-width: 960px; 
         box-sizing: border-box;
     }
 
@@ -52,6 +51,8 @@
         justify-content: space-between;
         align-items: flex-end; 
         width: 100%;
+        flex-wrap: wrap;
+        gap: 15px;
     }
 
     .bottom-row {
@@ -64,6 +65,8 @@
         font-size: 24px;
         font-weight: bold;
         box-shadow: inset 0px 2px 5px rgba(0,0,0,0.5);
+        flex-wrap: wrap;
+        gap: 10px;
     }
 
     .control-group {
@@ -72,10 +75,6 @@
         align-items: center;
         gap: 8px;
     }
-
-    .left-group { align-items: flex-start; }
-    .center-group { align-items: center; }
-    .right-group { align-items: flex-end; }
 
     .btn-row {
         display: flex;
@@ -94,10 +93,11 @@
     #canvasWrapper {
         resize: both;
         overflow: hidden;
-        width: 960px;
-        height: 1160px;
-        min-width: 600px;
-        min-height: 500px;
+        width: 100%;
+        max-width: 960px;
+        height: 75vh; /* Responsive height for mobile */
+        min-width: 300px; /* Lowered from 600px so it fits on iPhone */
+        min-height: 400px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
         border-radius: 8px;
         background-color: #1e1e1e;
@@ -110,13 +110,12 @@
       height: 100%;
       display: block;
       cursor: crosshair;
-      /* CRITICAL: Prevents all scrolling/zooming gestures on the canvas */
-      touch-action: none; 
+      touch-action: none; /* CRITICAL: Stops swipe/scroll gestures on the canvas */
     }
 
     /* BUTTON TOUCH OPTIMIZATIONS */
     button {
-      touch-action: manipulation; /* Removes 300ms tap delay */
+      touch-action: manipulation; /* Removes 300ms tap delay natively */
       cursor: pointer;
     }
 
@@ -152,6 +151,12 @@
     .reset-btn { background-color: #E53935; }
     .reset-btn:hover { background-color: #d32f2f; }
     
+    /* Mobile adjustments for text sizes */
+    @media (max-width: 600px) {
+        .bottom-row { font-size: 18px; }
+        .action-btn { font-size: 18px; padding: 10px 16px; }
+        .level-btn { width: 35px; height: 35px; font-size: 24px; }
+    }
   </style>
 </head>
 <body>
@@ -165,29 +170,28 @@
       
       <!-- TOP ROW: Controls -->
       <div class="top-row">
-        <div class="control-group left-group">
+        <div class="control-group">
           <div class="btn-row">
-            <!-- Replaced onclick with onpointerdown + preventDefault -->
-            <button id="actionBtn" class="action-btn" onpointerdown="event.preventDefault(); togglePlayPause()">Start</button>
-            <button class="action-btn reset-btn" onpointerdown="event.preventDefault(); handleStopClick()">Stop</button>
+            <button id="actionBtn" class="action-btn" onclick="togglePlayPause()">Start</button>
+            <button class="action-btn reset-btn" onclick="handleStopClick()">Stop</button>
           </div>
         </div>
 
-        <div class="control-group center-group">
+        <div class="control-group">
           <div class="label">Level</div>
           <div class="btn-row">
-            <button class="level-btn" onpointerdown="event.preventDefault(); changeLevel(-1)">-</button>
+            <button class="level-btn" onclick="changeLevel(-1)">-</button>
             <span id="levelDisplay" style="min-width: 35px; text-align: center; font-size: 28px; font-weight: bold;">1</span>
-            <button class="level-btn" onpointerdown="event.preventDefault(); changeLevel(1)">+</button>
+            <button class="level-btn" onclick="changeLevel(1)">+</button>
           </div>
         </div>
 
-        <div class="control-group right-group">
+        <div class="control-group">
           <div class="label">Time Setup</div>
           <div class="btn-row">
-            <button class="level-btn" onpointerdown="event.preventDefault(); changeTimeSetting(-10)">-</button>
+            <button class="level-btn" onclick="changeTimeSetting(-10)">-</button>
             <span id="timeSettingDisplay" style="min-width: 45px; text-align: center; font-size: 28px; font-weight: bold;">30</span>
-            <button class="level-btn" onpointerdown="event.preventDefault(); changeTimeSetting(10)">+</button>
+            <button class="level-btn" onclick="changeTimeSetting(10)">+</button>
           </div>
         </div>
       </div>
@@ -259,7 +263,12 @@
             canvas.width = entry.contentRect.width;
             canvas.height = entry.contentRect.height;
             FIELD_MAX_Y = canvas.height - SHAPE_SIZE;
-            controlsBox.style.width = entry.contentRect.width + "px";
+            // Only sync width if we are on a larger screen to prevent overflow
+            if (window.innerWidth > 960) {
+                controlsBox.style.width = entry.contentRect.width + "px";
+            } else {
+                controlsBox.style.width = "100%";
+            }
         }
     });
     resizeObserver.observe(canvasWrapper);
@@ -489,257 +498,4 @@
 
             ctx.beginPath();
             ctx.moveTo(x, y + r);
-            ctx.lineTo(x + r*0.866, y - r*0.5);
-            ctx.lineTo(x - r*0.866, y - r*0.5);
-            ctx.closePath();
-            ctx.fill();
-        }
-    }
-
-    function getRandomCombo(excludeIndex) {
-        let usedCombos = activeItems
-            .filter((item, idx) => idx !== excludeIndex && item.shape && item.color)
-            .map(item => item.shape + item.color);
-            
-        let availableCombos = allCombos.filter(c => !usedCombos.includes(c.shape + c.color));
-        return availableCombos[Math.floor(Math.random() * availableCombos.length)];
-    }
-
-    function getValidPosition(excludeIndex) {
-        let attempts = 0;
-        let currentMinDist = 200; 
-        
-        let rxRange = Math.max(10, canvas.width - SHAPE_SIZE * 3);
-        let ryRange = Math.max(10, FIELD_MAX_Y - FIELD_MIN_Y - SHAPE_SIZE * 3);
-        
-        while (attempts < 250) {
-            if (attempts > 50) currentMinDist *= 0.95; 
-            
-            let rx = (SHAPE_SIZE * 1.5) + Math.random() * rxRange;
-            let ry = FIELD_MIN_Y + (SHAPE_SIZE * 1.5) + Math.random() * ryRange;
-            
-            let overlap = false;
-            for (let i = 0; i < activeItems.length; i++) {
-                if (i === excludeIndex) continue; 
-                if (!activeItems[i].x) continue;  
-                
-                let dx = rx - activeItems[i].x;
-                let dy = ry - activeItems[i].y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < currentMinDist) {
-                    overlap = true;
-                    break;
-                }
-            }
-            if (!overlap) return {x: rx, y: ry};
-            attempts++;
-        }
-        return {x: canvas.width/2, y: FIELD_MIN_Y + 100}; 
-    }
-
-    // --- TOUCH/POINTER EVENT OPTIMIZATION ---
-    // Replaced 'mousedown' with 'pointerdown' for instant touch response
-    canvas.addEventListener('pointerdown', function(event) {
-        // CRITICAL: Prevents iOS from interpreting the tap as a scroll/gesture
-        event.preventDefault(); 
-
-        if (gameState !== 'PLAYING' || celebrating) return; 
-
-        initAudio();
-        const rect = canvas.getBoundingClientRect();
-        const clickX = (event.clientX - rect.left) * (canvas.width / rect.width);
-        const clickY = (event.clientY - rect.top) * (canvas.height / rect.height);
-
-        let hitCorrect = false;
-
-        for (let i = 0; i < activeItems.length; i++) {
-            let item = activeItems[i];
-            let dx = clickX - item.x;
-            let dy = clickY - item.y;
-            
-            if (Math.sqrt(dx*dx + dy*dy) <= SHAPE_SIZE / 2) {
-                if (!target1.found && item.shape === target1.shape && item.color === target1.color) {
-                    target1.found = true;
-                    item.found = true;
-                    hitCorrect = true;
-                }
-                else if (!target2.found && item.shape === target2.shape && item.color === target2.color) {
-                    target2.found = true;
-                    item.found = true;
-                    hitCorrect = true;
-                }
-                break; 
-            }
-        }
-
-        if (target1.found && target2.found) {
-            score++;
-            levelScore++;
-            document.getElementById('scoreDisplay').innerHTML = score;
-            
-            if (levelScore >= levelTarget) {
-                playSound('timeout_win'); 
-                celebrating = true;
-                
-                setTimeout(() => {
-                    currentLevel++;
-                    if (currentLevel > 10) {
-                        alert("Congratulations! You beat all 10 levels!");
-                        handleStopClick();
-                        return;
-                    }
-                    
-                    levelScore = 0;
-                    timeLeft = timeSetting;
-                    document.getElementById('levelDisplay').innerText = currentLevel;
-                    document.getElementById('timeDisplay').innerText = timeLeft;
-                    calculateLevelTarget();
-                    
-                    gameState = 'STOPPED';
-                    clearInterval(timeInterval);
-                    const btn = document.getElementById("actionBtn");
-                    btn.innerText = "Start";
-                    btn.style.backgroundColor = "#4CAF50";
-                    
-                    forceTargetReset = true; 
-                    celebrating = false;
-                    activeItems = []; 
-                }, 500);
-                
-            } else {
-                playSound('win'); 
-                celebrating = true;
-                
-                setTimeout(() => {
-                    forceTargetReset = true; 
-                    celebrating = false;
-                    activeItems.forEach(item => item.found = false); 
-                }, 500); 
-            }
-            
-        } else if (hitCorrect) {
-            playSound('positive'); 
-        } else {
-            playSound('negative'); 
-        }
-    });
-
-    function drawTarget(target, x, y) {
-        if (target.found) {
-            ctx.beginPath();
-            ctx.arc(x, y, SHAPE_SIZE - 2, 0, Math.PI*2); 
-            ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
-            ctx.fill();
-            ctx.strokeStyle = "#4CAF50";
-            ctx.lineWidth = 4;
-            ctx.stroke();
-        }
-        drawShape(target.shape, target.color, x, y);
-    }
-
-    function animate(timestamp) {
-        let deltaTime = timestamp - lastRealTime;
-        lastRealTime = timestamp;
-        
-        if (gameState === 'PLAYING') {
-            gameTime += deltaTime;
-        }
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let speedMultiplier = getSpeedMultiplier();
-
-        ctx.fillStyle = "#2c2c2c";
-        ctx.fillRect(0, 0, canvas.width, 140); 
-        ctx.fillStyle = "#555";
-        ctx.fillRect(0, 140, canvas.width, 4); 
-
-        ctx.fillStyle = "#ddd";
-        ctx.font = "bold 20px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText("FIND THESE TWO:", 20, 80);
-
-        drawTarget(target1, canvas.width/2 - 80, 70);
-        drawTarget(target2, canvas.width/2 + 80, 70);
-
-        if (gameState === 'STOPPED') {
-            let cols = 8;
-            let rows = 6;
-            let xSpacing = canvas.width / cols;
-            let ySpacing = (FIELD_MAX_Y - FIELD_MIN_Y) / rows;
-
-            for (let i = 0; i < allCombos.length; i++) {
-                let col = i % cols;
-                let row = Math.floor(i / cols);
-                let cx = (xSpacing / 2) + col * xSpacing;
-                let cy = FIELD_MIN_Y + (ySpacing / 2) + row * ySpacing;
-                drawShape(allCombos[i].shape, allCombos[i].color, cx, cy);
-            }
-
-        } else {
-            if (gameState === 'PLAYING' && (gameTime > targetsTimeToUpdate || forceTargetReset)) {
-                forceTargetReset = false;
-                
-                activeItems.forEach(item => item.found = false);
-                
-                let idx1 = Math.floor(Math.random() * NUM_SHAPES);
-                let idx2 = Math.floor(Math.random() * NUM_SHAPES);
-                while (idx1 === idx2) {
-                    idx2 = Math.floor(Math.random() * NUM_SHAPES);
-                }
-
-                target1 = { shape: activeItems[idx1].shape, color: activeItems[idx1].color, found: false };
-                target2 = { shape: activeItems[idx2].shape, color: activeItems[idx2].color, found: false };
-
-                let baseDuration = 2500 + Math.random() * 1500;
-                let finalDuration = baseDuration * speedMultiplier;
-                targetsTimeToUpdate = gameTime + finalDuration;
-
-                activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
-                activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
-            }
-
-            for (let i = 0; i < activeItems.length; i++) {
-                let item = activeItems[i];
-                
-                if (gameState === 'PLAYING' && !celebrating && gameTime > item.timeToUpdate && !item.found) {
-                    let newCombo = getRandomCombo(i);
-                    let newPos = getValidPosition(i);
-                    
-                    item.shape = newCombo.shape;
-                    item.color = newCombo.color;
-                    item.x = newPos.x;
-                    item.y = newPos.y;
-                    
-                    let baseJumpDelay = 1000 + Math.random() * 2000;
-                    item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
-                }
-                
-                if (!item.found) {
-                    drawShape(item.shape, item.color, item.x, item.y);
-                }
-            }
-
-            for (let i = 0; i < activeItems.length; i++) {
-                let item = activeItems[i];
-                if (item.found) {
-                    ctx.beginPath();
-                    ctx.arc(item.x, item.y, SHAPE_SIZE - 2, 0, Math.PI*2);
-                    ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
-                    ctx.fill();
-                    ctx.strokeStyle = "#4CAF50";
-                    ctx.lineWidth = 4;
-                    ctx.stroke();
-                    drawShape(item.shape, item.color, item.x, item.y);
-                }
-            }
-        }
-
-        requestAnimationFrame(animate);
-    }
-
-    calculateLevelTarget();
-    requestAnimationFrame(animate);
-  </script>
-</body>
-</html>
+            ctx.lineTo(x + r*0.
