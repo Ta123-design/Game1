@@ -626,3 +626,161 @@
                     
                     gameState = 'STOPPED';
                     clearInterval(timeInterval);
+                    const btn = document.getElementById("actionBtn");
+                    btn.innerText = "Start";
+                    btn.style.backgroundColor = "#4CAF50";
+                    
+                    forceTargetReset = true; 
+                    celebrating = false;
+                    activeItems = []; 
+                }, 500);
+                
+            } else {
+                playSound('win'); 
+                celebrating = true;
+                
+                setTimeout(() => {
+                    forceTargetReset = true; 
+                    celebrating = false;
+                    activeItems.forEach(item => item.found = false); 
+                }, 500); 
+            }
+            
+        } else if (hitCorrect) {
+            playSound('positive'); 
+        } else {
+            playSound('negative'); 
+        }
+    }
+
+    canvas.addEventListener('touchstart', handleTap, { passive: false });
+    canvas.addEventListener('mousedown', handleTap);
+
+    function drawTarget(target, x, y) {
+        if (target.found) {
+            ctx.beginPath();
+            ctx.arc(x, y, SHAPE_SIZE - 2, 0, Math.PI*2); 
+            ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
+            ctx.fill();
+            ctx.strokeStyle = "#4CAF50";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+        drawShape(target.shape, target.color, x, y);
+    }
+
+    function animate(timestamp) {
+        if (!lastRealTime) lastRealTime = timestamp;
+        let deltaTime = timestamp - lastRealTime;
+        lastRealTime = timestamp;
+        
+        if (gameState === 'PLAYING') {
+            gameTime += deltaTime;
+        }
+
+        // Only draw if canvas has valid dimensions
+        if (canvas.width > 0 && canvas.height > 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let speedMultiplier = getSpeedMultiplier();
+
+            ctx.fillStyle = "#2c2c2c";
+            ctx.fillRect(0, 0, canvas.width, 140); 
+            ctx.fillStyle = "#555";
+            ctx.fillRect(0, 140, canvas.width, 4); 
+
+            let centerOffset = canvas.width < 500 ? 55 : 80;
+            
+            ctx.fillStyle = "#ddd";
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "left";
+            if (canvas.width < 500) {
+                ctx.fillText("FIND:", 10, 80);
+            } else {
+                ctx.fillText("FIND THESE TWO:", 20, 80);
+            }
+
+            drawTarget(target1, canvas.width/2 - centerOffset, 70);
+            drawTarget(target2, canvas.width/2 + centerOffset, 70);
+
+            if (gameState === 'STOPPED') {
+                let cols = canvas.width < 500 ? 4 : 8;
+                let rows = canvas.width < 500 ? 12 : 6;
+                let xSpacing = canvas.width / cols;
+                let ySpacing = (FIELD_MAX_Y - FIELD_MIN_Y) / rows;
+
+                for (let i = 0; i < allCombos.length; i++) {
+                    let col = i % cols;
+                    let row = Math.floor(i / cols);
+                    let cx = (xSpacing / 2) + col * xSpacing;
+                    let cy = FIELD_MIN_Y + (ySpacing / 2) + row * ySpacing;
+                    drawShape(allCombos[i].shape, allCombos[i].color, cx, cy);
+                }
+
+            } else {
+                if (gameState === 'PLAYING' && (gameTime > targetsTimeToUpdate || forceTargetReset)) {
+                    forceTargetReset = false;
+                    
+                    activeItems.forEach(item => item.found = false);
+                    
+                    let idx1 = Math.floor(Math.random() * NUM_SHAPES);
+                    let idx2 = Math.floor(Math.random() * NUM_SHAPES);
+                    while (idx1 === idx2) {
+                        idx2 = Math.floor(Math.random() * NUM_SHAPES);
+                    }
+
+                    target1 = { shape: activeItems[idx1].shape, color: activeItems[idx1].color, found: false };
+                    target2 = { shape: activeItems[idx2].shape, color: activeItems[idx2].color, found: false };
+
+                    let baseDuration = 2500 + Math.random() * 1500;
+                    let finalDuration = baseDuration * speedMultiplier;
+                    targetsTimeToUpdate = gameTime + finalDuration;
+
+                    activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
+                    activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
+                }
+
+                for (let i = 0; i < activeItems.length; i++) {
+                    let item = activeItems[i];
+                    
+                    if (gameState === 'PLAYING' && !celebrating && gameTime > item.timeToUpdate && !item.found) {
+                        let newCombo = getRandomCombo(i);
+                        let newPos = getValidPosition(i);
+                        
+                        item.shape = newCombo.shape;
+                        item.color = newCombo.color;
+                        item.x = newPos.x;
+                        item.y = newPos.y;
+                        
+                        let baseJumpDelay = 1000 + Math.random() * 2000;
+                        item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
+                    }
+                    
+                    if (!item.found) {
+                        drawShape(item.shape, item.color, item.x, item.y);
+                    }
+                }
+
+                for (let i = 0; i < activeItems.length; i++) {
+                    let item = activeItems[i];
+                    if (item.found) {
+                        ctx.beginPath();
+                        ctx.arc(item.x, item.y, SHAPE_SIZE - 2, 0, Math.PI*2);
+                        ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
+                        ctx.fill();
+                        ctx.strokeStyle = "#4CAF50";
+                        ctx.lineWidth = 4;
+                        ctx.stroke();
+                        drawShape(item.shape, item.color, item.x, item.y);
+                    }
+                }
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    calculateLevelTarget();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
