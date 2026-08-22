@@ -41,29 +41,51 @@
         width: 100%;
     }
 
-    /* SCROLLING SKY BACKGROUND FOR BOTTOM ROW */
+    /* SCROLLING SKY BACKGROUND FOR COMBINED AREA */
     @keyframes scrollClouds {
         0% { background-position: 0 0; }
         100% { background-position: 400px 0; }
     }
-    .bottom-row {
+    
+    .sky-panel {
         display: flex;
-        justify-content: space-around;
+        flex-direction: column;
         align-items: center;
-        
         background-color: #87CEEB; 
         /* Simple SVG clouds encoded into the background */
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Cpath d='M60,100 Q80,70 110,100 Q140,80 170,100 Q190,120 170,130 L60,130 Q40,120 60,100 Z' fill='%23ffffff' opacity='0.8'/%3E%3Cpath d='M260,60 Q280,30 310,60 Q340,40 370,60 Q390,80 370,90 L260,90 Q240,80 260,60 Z' fill='%23ffffff' opacity='0.6'/%3E%3C/svg%3E");
         background-size: 400px 200px;
         background-repeat: repeat-x;
         animation: scrollClouds 15s linear infinite;
-
         padding: 15px;
         border-radius: 8px;
-        font-size: 36px; /* Increased Font by 50% (Was 24px) */
-        font-weight: bold;
         box-shadow: inset 0px 2px 5px rgba(0,0,0,0.5);
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8); /* Ensures colors pop against sky */
+        gap: 15px;
+    }
+
+    .stats-row {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        width: 100%;
+        font-size: 36px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
+    }
+    
+    .targets-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 30px;
+        width: 100%;
+    }
+
+    .target-text {
+        font-size: 30px;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     }
 
     .control-group {
@@ -95,7 +117,8 @@
         resize: both;
         overflow: hidden;
         width: 960px;
-        height: 1160px;
+        /* Adjusted height to keep the overall game footprint exactly the same */
+        height: 1020px; 
         min-width: 600px;
         min-height: 500px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
@@ -118,8 +141,8 @@
         position: absolute; 
         top: 50%; left: 50%; 
         transform: translate(-50%, -50%); 
-        width: 60%; /* Longest side left to right */
-        height: 35%; /* Total area roughly 21-25% of playing area */
+        width: 60%; 
+        height: 40%; 
         background: linear-gradient(to bottom, #87CEEB, #e0f6ff); 
         border: 4px solid white; 
         border-radius: 12px; 
@@ -127,7 +150,7 @@
         flex-direction: column; 
         justify-content: center; 
         align-items: center; 
-        gap: 10px; 
+        gap: 20px; 
         box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
         z-index: 10;
         text-shadow: none;
@@ -175,7 +198,7 @@
 <body>
   <h2>Shape Hunter Match</h2>
   <div class="instructions">
-    Look at the <strong>2 Targets at the top</strong>. Click their matches in the moving field below!
+    Look at the <strong>2 Targets</strong> in the sky banner. Click their matches in the moving field below!
   </div>
   
   <div id="gameContainer">
@@ -209,10 +232,18 @@
         </div>
       </div>
 
-      <div class="bottom-row">
-        <div>Score: <span id="scoreDisplay" style="color: #4CAF50;">0</span></div>
-        <div>Time Left: <span id="timeDisplay" style="color: #FFD700;">30</span></div>
-        <div>Target: <span id="targetDisplay" style="color: #FFFFFF;">0</span></div>
+      <!-- COMBINED SKY PANEL (Stats + Targets) -->
+      <div class="sky-panel">
+        <div class="stats-row">
+            <div>Score: <span id="scoreDisplay" style="color: #4CAF50;">0</span></div>
+            <div>Time Left: <span id="timeDisplay" style="color: #FFD700;">30</span></div>
+            <div>Target: <span id="targetDisplay" style="color: #FFFFFF;">0</span></div>
+        </div>
+        <div class="targets-row">
+            <span class="target-text">FIND THESE TWO:</span>
+            <canvas id="t1Canvas" width="90" height="90"></canvas>
+            <canvas id="t2Canvas" width="90" height="90"></canvas>
+        </div>
       </div>
 
     </div>
@@ -220,12 +251,12 @@
     <div id="canvasWrapper">
         <canvas id="shapeCanvas"></canvas>
         
-        <!-- Game Over / Win Message Box -->
+        <!-- Game Over / Win Message Box with 50% larger fonts -->
         <div id="messageOverlay">
-            <h2 id="msgTitle" style="color: #333; margin: 0; font-size: 38px;"></h2>
-            <div id="msgLine1" style="font-size: 26px; color: #333; margin: 5px 0;"></div>
-            <div id="msgLine2" style="font-size: 26px; color: #333; margin: 5px 0 15px 0;"></div>
-            <button id="msgBtn" onclick="handleOverlayBtn()" class="action-btn" style="padding: 15px 30px; font-size: 24px; cursor: pointer;"></button>
+            <h2 id="msgTitle" style="color: #333; margin: -20px 0 10px 0; font-size: 57px;"></h2>
+            <div id="msgLine1" style="font-size: 39px; color: #333; margin: 5px 0;"></div>
+            <div id="msgLine2" style="font-size: 39px; color: #333; margin: 5px 0 15px 0;"></div>
+            <button id="msgBtn" onclick="handleOverlayBtn()" class="action-btn" style="padding: 15px 30px; font-size: 36px; cursor: pointer;"></button>
         </div>
     </div>
   </div>
@@ -245,7 +276,6 @@
         "#FFFFFF"  // White
     ];
     
-    // Converted Hexagon to Pentagon
     const shapes = ["square", "rectangle", "triangle", "octagon", "pentagon", "circle"];
     
     const allCombos = [];
@@ -257,15 +287,15 @@
 
     const NUM_SHAPES = 12; 
     const SHAPE_SIZE = 66; 
-    const FIELD_MIN_Y = 180;
     
-    let FIELD_MAX_Y = 1160 - SHAPE_SIZE; 
+    // Adjusted bounds so the field perfectly fits the modified canvas size
+    const FIELD_MIN_Y = 20;
+    let FIELD_MAX_Y = 1020 - SHAPE_SIZE; 
 
     let activeItems = [];
     
-    // SCORING LOGIC UPDATES
-    let overallScore = 0; // Cumulative score of won levels
-    let levelScore = 0;   // Current score in the active level
+    let overallScore = 0; 
+    let levelScore = 0;   
     let currentLevel = 1; 
     
     let levelTarget = 0;
@@ -276,7 +306,6 @@
     let forceTargetReset = true;
     let celebrating = false; 
 
-    // states: 'STOPPED', 'PLAYING', 'PAUSED', 'LEVEL_END_WIN', 'LEVEL_END_LOSE'
     let gameState = 'STOPPED'; 
     let lastRealTime = performance.now();
     let gameTime = 0; 
@@ -285,7 +314,7 @@
     let timeLeft = 30;    
     let timeInterval = null;
 
-    let particles = []; // For Fireworks
+    let particles = []; 
 
     const canvasWrapper = document.getElementById("canvasWrapper");
     const controlsBox = document.getElementById("controlsBox");
@@ -334,7 +363,6 @@
             oscillator.stop(audioCtx.currentTime + 0.15);
             
         } else if (type === 'negative') {
-            // Sad Game Over Sound
             oscillator.type = 'sawtooth';
             oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
             oscillator.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.6);
@@ -352,7 +380,7 @@
         initAudio();
         happyPlaying = true;
         let i = 0;
-        let sequence = [523.25, 659.25, 783.99, 1046.50]; // Happy C Major Arpeggio
+        let sequence = [523.25, 659.25, 783.99, 1046.50]; 
         
         function playNote() {
             if (!happyPlaying) return;
@@ -401,7 +429,7 @@
         gameState = 'STOPPED';
         levelScore = 0;
         timeLeft = timeSetting;
-        particles = []; // Clear fireworks
+        particles = []; 
         
         document.getElementById('levelDisplay').innerText = currentLevel;
         document.getElementById('scoreDisplay').innerText = overallScore + levelScore;
@@ -412,7 +440,7 @@
         forceTargetReset = true;
         document.getElementById("actionBtn").innerText = "Start";
         
-        handleStartResume(); // Automatically kickstart level after clicking continue/replay
+        handleStartResume(); 
     }
 
     function calculateLevelTarget() {
@@ -425,7 +453,6 @@
     }
 
     function handleStartResume() {
-        // If clicking start while end-screen is up, proceed and clean up overlay 
         if (gameState === 'LEVEL_END_WIN' || gameState === 'LEVEL_END_LOSE') {
             document.getElementById('messageOverlay').style.display = 'none';
             stopLoopingHappySound();
@@ -509,26 +536,27 @@
             document.getElementById('timeDisplay').innerText = timeLeft;
             
             if (timeLeft <= 0) {
-                // TIMER RUNS OUT - END OF LEVEL EVALUATION
                 gameState = 'STOPPED';
                 clearInterval(timeInterval);
                 document.getElementById("actionBtn").innerText = "Start";
                 
-                if (levelScore >= levelTarget) {
+                let finalLevelScore = levelScore; // Capture the final score for the message box
+                
+                if (finalLevelScore >= levelTarget) {
                     // WON
                     gameState = 'LEVEL_END_WIN';
-                    overallScore += levelScore; // Append temporary levelScore permanently
+                    overallScore += finalLevelScore; 
                     document.getElementById('scoreDisplay').innerText = overallScore;
                     
-                    showOverlay("You Won!", `Game score was: ${overallScore}`, `Challenge was: ${levelTarget}`, `Continue To Level ${currentLevel + 1}`);
+                    showOverlay("You Won!", `Level score was: ${finalLevelScore}`, `Challenge was: ${levelTarget}`, `Continue To Level ${currentLevel + 1}`);
                     playLoopingHappySound();
                 } else {
                     // FAILED
                     gameState = 'LEVEL_END_LOSE';
-                    levelScore = 0; // Erase temp levelScore and fall back to overall
+                    levelScore = 0; 
                     document.getElementById('scoreDisplay').innerText = overallScore;
                     
-                    showOverlay("You Failed", `Your game score was: ${overallScore}`, `Level ${currentLevel} Target was: ${levelTarget}`, `Replay Level ${currentLevel}`);
+                    showOverlay("You Failed", `Level score was: ${finalLevelScore}`, `Level ${currentLevel} Target was: ${levelTarget}`, `Replay Level ${currentLevel}`);
                     playSound('negative');
                 }
             }
@@ -562,49 +590,73 @@
     }
 
     // --- DRAWING FUNCTIONS ---
-    function drawPolygon(ctx, x, y, radius, sides) {
-        ctx.beginPath();
+    function drawPolygonCtx(context, x, y, radius, sides) {
+        context.beginPath();
         for (let i = 0; i < sides; i++) {
             const angle = i * 2 * Math.PI / sides - Math.PI / 2; 
-            ctx.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
+            context.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
         }
-        ctx.closePath();
-        ctx.fill();
+        context.closePath();
+        context.fill();
     }
 
-    function drawShape(type, color, x, y) {
-        ctx.fillStyle = color;
+    function drawShapeCtx(context, type, color, x, y) {
+        context.fillStyle = color;
         const size = SHAPE_SIZE;
         
         if (type === "square") {
-            ctx.fillRect(x - size/2, y - size/2, size, size);
+            context.fillRect(x - size/2, y - size/2, size, size);
         } else if (type === "rectangle") {
-            ctx.fillRect(x - (size*0.75), y - (size*0.45), size*1.5, size*0.9);
+            context.fillRect(x - (size*0.75), y - (size*0.45), size*1.5, size*0.9);
         } else if (type === "circle") {
-            ctx.beginPath();
-            ctx.arc(x, y, size/2, 0, Math.PI * 2);
-            ctx.fill();
+            context.beginPath();
+            context.arc(x, y, size/2, 0, Math.PI * 2);
+            context.fill();
         } else if (type === "triangle") {
-            drawPolygon(ctx, x, y + size/6, size/1.6, 3);
+            drawPolygonCtx(context, x, y + size/6, size/1.6, 3);
         } else if (type === "pentagon") {
-            // Hexagon changed to Pentagon 
-            drawPolygon(ctx, x, y, size/1.75, 5);
+            drawPolygonCtx(context, x, y, size/1.75, 5);
         } else if (type === "octagon") {
             let r = size / 1.5; 
-            ctx.beginPath();
-            ctx.moveTo(x, y - r);
-            ctx.lineTo(x + r*0.866, y + r*0.5);
-            ctx.lineTo(x - r*0.866, y + r*0.5);
-            ctx.closePath();
-            ctx.fill();
+            context.beginPath();
+            context.moveTo(x, y - r);
+            context.lineTo(x + r*0.866, y + r*0.5);
+            context.lineTo(x - r*0.866, y + r*0.5);
+            context.closePath();
+            context.fill();
 
-            ctx.beginPath();
-            ctx.moveTo(x, y + r);
-            ctx.lineTo(x + r*0.866, y - r*0.5);
-            ctx.lineTo(x - r*0.866, y - r*0.5);
-            ctx.closePath();
-            ctx.fill();
+            context.beginPath();
+            context.moveTo(x, y + r);
+            context.lineTo(x + r*0.866, y - r*0.5);
+            context.lineTo(x - r*0.866, y - r*0.5);
+            context.closePath();
+            context.fill();
         }
+    }
+
+    // Helper for main canvas
+    function drawShape(type, color, x, y) {
+        drawShapeCtx(ctx, type, color, x, y);
+    }
+
+    function drawTargetUI(target, canvasId) {
+        const tCanvas = document.getElementById(canvasId);
+        const tCtx = tCanvas.getContext("2d");
+        tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
+        
+        const cx = tCanvas.width / 2;
+        const cy = tCanvas.height / 2;
+
+        if (target.found) {
+            tCtx.beginPath();
+            tCtx.arc(cx, cy, SHAPE_SIZE - 2, 0, Math.PI*2); 
+            tCtx.fillStyle = "rgba(76, 175, 80, 0.4)";
+            tCtx.fill();
+            tCtx.strokeStyle = "#4CAF50";
+            tCtx.lineWidth = 4;
+            tCtx.stroke();
+        }
+        drawShapeCtx(tCtx, target.shape, target.color, cx, cy);
     }
 
     // FIREWORKS
@@ -674,8 +726,6 @@
         const clickY = (event.clientY - rect.top) * (canvas.height / rect.height);
 
         let hitCorrect = false;
-        
-        // 1.5x bigger clickable area (radius = SHAPE_SIZE / 2)
         const hitBoxRadius = (SHAPE_SIZE / 2) * 1.5;
 
         for (let i = 0; i < activeItems.length; i++) {
@@ -698,42 +748,30 @@
             }
         }
 
-        if (target1.found && target2.found) {
-            // Apply bonus points if past 80% mark threshold
-            if (levelScore >= levelTarget) {
-                levelScore += 2; // Extra point bonus
+        if (hitCorrect) {
+            if (target1.found && target2.found) {
+                if (levelScore >= levelTarget) {
+                    levelScore += 2;
+                } else {
+                    levelScore += 1;
+                }
+                document.getElementById('scoreDisplay').innerHTML = overallScore + levelScore;
+                
+                playSound('win'); 
+                celebrating = true;
+                
+                setTimeout(() => {
+                    forceTargetReset = true; 
+                    celebrating = false;
+                    activeItems.forEach(item => item.found = false); 
+                }, 500); 
             } else {
-                levelScore += 1;
+                playSound('positive'); 
             }
-            document.getElementById('scoreDisplay').innerHTML = overallScore + levelScore;
-            
-            playSound('win'); 
-            celebrating = true;
-            
-            // Note: Does not force early-level end anymore. Continues till timer runs out.
-            setTimeout(() => {
-                forceTargetReset = true; 
-                celebrating = false;
-                activeItems.forEach(item => item.found = false); 
-            }, 500); 
-            
-        } else if (hitCorrect) {
-            playSound('positive'); 
+        } else {
+            playSound('negative'); // Bug Fix: Restored sound on wrong clicks
         }
     });
-
-    function drawTarget(target, x, y) {
-        if (target.found) {
-            ctx.beginPath();
-            ctx.arc(x, y, SHAPE_SIZE - 2, 0, Math.PI*2); 
-            ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
-            ctx.fill();
-            ctx.strokeStyle = "#4CAF50";
-            ctx.lineWidth = 4;
-            ctx.stroke();
-        }
-        drawShape(target.shape, target.color, x, y);
-    }
 
     // --- MAIN ANIMATION LOOP ---
     function animate(timestamp) {
@@ -744,35 +782,21 @@
             gameTime += deltaTime;
         }
 
-        // Only fully clear background if NOT in fireworks trailing mode
+        // Draw sky panel HTML canvases 
+        drawTargetUI(target1, "t1Canvas");
+        drawTargetUI(target2, "t2Canvas");
+
         if (gameState !== 'LEVEL_END_WIN') {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-        } else {
-            ctx.clearRect(0, 0, canvas.width, 140); // Clear top UI banner area fully
         }
 
         let speedMultiplier = getSpeedMultiplier();
 
-        // 1. Top Area UI 
-        ctx.fillStyle = "#2c2c2c";
-        ctx.fillRect(0, 0, canvas.width, 140); 
-        ctx.fillStyle = "#555";
-        ctx.fillRect(0, 140, canvas.width, 4); 
-
-        ctx.fillStyle = "#ddd";
-        ctx.font = "bold 20px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText("FIND THESE TWO:", 20, 80);
-
-        drawTarget(target1, canvas.width/2 - 80, 70);
-        drawTarget(target2, canvas.width/2 + 80, 70);
-
-        // 2. Logic & Drawing 
+        // 2. Main Canvas Logic & Drawing 
         if (gameState === 'LEVEL_END_WIN') {
             
-            // Draw Fireworks / Semi-transparent background for trails
             ctx.fillStyle = "rgba(30, 30, 30, 0.25)";
-            ctx.fillRect(0, 144, canvas.width, canvas.height - 144);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             if (Math.random() < 0.1) {
                 createExplosion(
@@ -785,8 +809,8 @@
                 let p = particles[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.15; // Gravity
-                p.life -= 0.02; // Fade
+                p.vy += 0.15; 
+                p.life -= 0.02; 
                 if (p.life <= 0) {
                     particles.splice(i, 1);
                 } else {
@@ -800,7 +824,6 @@
             }
 
         } else if (gameState === 'STOPPED' || gameState === 'LEVEL_END_LOSE') {
-            // Draw static grid / normal beginning launch display
             let cols = 8;
             let rows = 6;
             let xSpacing = canvas.width / cols;
@@ -877,7 +900,6 @@
         requestAnimationFrame(animate);
     }
 
-    // Initialize target display on load
     calculateLevelTarget();
     requestAnimationFrame(animate);
   </script>
