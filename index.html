@@ -299,8 +299,8 @@
     }
 
     // --- HARDCODED LEVEL CONFIGURATIONS ---
-    const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2600, 2300, 2000, 1800, 1600];
-    const LEVEL_BASE_TARGETS = [5, 6, 7, 7, 8, 9, 10, 11, 12, 13];
+    const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2600, 2500, 2400, 2300, 2200];
+    const LEVEL_BASE_TARGETS = [5, 6, 7, 7, 8, 9, 9, 9, 10, 10];
 
     const NUM_SHAPES = 12; 
     const SHAPE_SIZE = 66; 
@@ -379,6 +379,7 @@
             oscillator.stop(audioCtx.currentTime + 0.15);
             
         } else if (type === 'negative') {
+            // Short sad sound for regular incorrect clicks
             oscillator.type = 'sawtooth';
             oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
             oscillator.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.6);
@@ -388,6 +389,18 @@
             
             oscillator.start(audioCtx.currentTime);
             oscillator.stop(audioCtx.currentTime + 0.6);
+
+        } else if (type === 'level_fail') {
+            // New, longer sad trombone style sound specifically for failing a level
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1.5);
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 1.5);
         }
     }
 
@@ -570,7 +583,8 @@
                     document.getElementById('scoreDisplay').innerText = overallScore;
                     
                     showOverlay("You Failed", `Level score was: ${finalLevelScore}`, `Level ${currentLevel} Target was: ${levelTarget}`, `Replay Level ${currentLevel}`);
-                    playSound('negative');
+                    // Updated to use the longer fail sound
+                    playSound('level_fail');
                 }
             }
         }, 1000);
