@@ -23,7 +23,6 @@
     #controlsBox {
         background-color: #333;
         color: white;
-        /* Adjusted padding and removed bottom margin to remove the gap */
         padding: 20px 20px 0px 20px; 
         border-radius: 8px;
         border-bottom-left-radius: 0; 
@@ -60,7 +59,6 @@
         animation: scrollClouds 15s linear infinite;
         padding: 15px;
         
-        /* Squared off bottom edges so it sits perfectly flush with the black playing field */
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
         border-bottom-left-radius: 0px;
@@ -77,7 +75,7 @@
         width: 100%;
         font-size: 36px;
         font-weight: bold;
-        color: #FF4500; /* Red-Orange for the text labels */
+        color: #FF4500; 
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
     }
     
@@ -92,7 +90,7 @@
     .target-text {
         font-size: 30px;
         font-weight: bold;
-        color: #FF4500; /* Red-Orange for FIND THESE TWO */
+        color: #FF4500; 
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     }
 
@@ -130,7 +128,6 @@
         min-height: 500px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
         
-        /* Squared off top edges so it merges cleanly with the sky panel */
         border-radius: 8px;
         border-top-left-radius: 0px;
         border-top-right-radius: 0px;
@@ -244,10 +241,8 @@
         </div>
       </div>
 
-      <!-- COMBINED SKY PANEL (Stats + Targets) -->
       <div class="sky-panel">
         <div class="stats-row">
-            <!-- Numbers updated to Green #4CAF50 to match the previous score color -->
             <div>Score: <span id="scoreDisplay" style="color: #4CAF50;">0</span></div>
             <div>Time Left: <span id="timeDisplay" style="color: #4CAF50;">30</span></div>
             <div>Target: <span id="targetDisplay" style="color: #4CAF50;">0</span></div>
@@ -264,7 +259,6 @@
     <div id="canvasWrapper">
         <canvas id="shapeCanvas"></canvas>
         
-        <!-- Game Over / Win Message Box -->
         <div id="messageOverlay">
             <h2 id="msgTitle" style="color: #333; margin: -20px 0 10px 0; font-size: 57px;"></h2>
             <div id="msgLine1" style="font-size: 39px; color: #333; margin: 5px 0;"></div>
@@ -299,7 +293,7 @@
     }
 
     // --- HARDCODED LEVEL CONFIGURATIONS ---
-    const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2600, 2500, 2400, 2300, 2200];
+    const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400];
     const LEVEL_BASE_TARGETS = [5, 6, 7, 7, 8, 9, 9, 9, 10, 10];
 
     const NUM_SHAPES = 12; 
@@ -318,6 +312,11 @@
 
     let target1 = {shape: allCombos[0].shape, color: allCombos[0].color, found: false};
     let target2 = {shape: allCombos[1].shape, color: allCombos[1].color, found: false};
+    
+    // Tracks history to prevent consecutive identical targets
+    let lastTarget1Combo = ""; 
+    let lastTarget2Combo = ""; 
+
     let targetsTimeToUpdate = 0;
     let forceTargetReset = true;
     let celebrating = false; 
@@ -361,46 +360,77 @@
 
     function playSound(type) {
         initAudio();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
+        
+        let t = audioCtx.currentTime;
 
         if (type === 'positive' || type === 'win') {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
-            oscillator.frequency.setValueAtTime(1108.73, audioCtx.currentTime + 0.05); 
+            oscillator.frequency.setValueAtTime(880, t); 
+            oscillator.frequency.setValueAtTime(1108.73, t + 0.05); 
             
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+            gainNode.gain.setValueAtTime(0.1, t);
+            gainNode.gain.linearRampToValueAtTime(0, t + 0.15);
             
-            oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + 0.15);
+            oscillator.start(t);
+            oscillator.stop(t + 0.15);
             
         } else if (type === 'negative') {
-            // Short sad sound for regular incorrect clicks
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
             oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
-            oscillator.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.6);
+            oscillator.frequency.setValueAtTime(200, t);
+            oscillator.frequency.linearRampToValueAtTime(100, t + 0.6);
             
-            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+            gainNode.gain.setValueAtTime(0.2, t);
+            gainNode.gain.linearRampToValueAtTime(0, t + 0.6);
             
-            oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + 0.6);
+            oscillator.start(t);
+            oscillator.stop(t + 0.6);
 
         } else if (type === 'level_fail') {
-            // New, longer sad trombone style sound specifically for failing a level
-            oscillator.type = 'sawtooth';
-            oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 1.5);
+            // New 3-Note Descending Sad Sound (ta taa taaaa)
             
-            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
-            
-            oscillator.start(audioCtx.currentTime);
-            oscillator.stop(audioCtx.currentTime + 1.5);
+            // Note 1
+            let osc1 = audioCtx.createOscillator();
+            let gain1 = audioCtx.createGain();
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(300, t);
+            gain1.gain.setValueAtTime(0.3, t);
+            gain1.gain.linearRampToValueAtTime(0, t + 0.4);
+            osc1.connect(gain1).connect(audioCtx.destination);
+            osc1.start(t); 
+            osc1.stop(t + 0.4);
+
+            // Note 2
+            let osc2 = audioCtx.createOscillator();
+            let gain2 = audioCtx.createGain();
+            osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(250, t + 0.4);
+            gain2.gain.setValueAtTime(0.3, t + 0.4);
+            gain2.gain.linearRampToValueAtTime(0, t + 0.8);
+            osc2.connect(gain2).connect(audioCtx.destination);
+            osc2.start(t + 0.4); 
+            osc2.stop(t + 0.8);
+
+            // Note 3 (sliding down longer)
+            let osc3 = audioCtx.createOscillator();
+            let gain3 = audioCtx.createGain();
+            osc3.type = 'sawtooth';
+            osc3.frequency.setValueAtTime(200, t + 0.8);
+            osc3.frequency.exponentialRampToValueAtTime(50, t + 2.0); // Slide down
+            gain3.gain.setValueAtTime(0.3, t + 0.8);
+            gain3.gain.linearRampToValueAtTime(0, t + 2.0);
+            osc3.connect(gain3).connect(audioCtx.destination);
+            osc3.start(t + 0.8); 
+            osc3.stop(t + 2.0);
         }
     }
 
@@ -459,6 +489,8 @@
         levelScore = 0;
         timeLeft = timeSetting;
         particles = []; 
+        lastTarget1Combo = "";
+        lastTarget2Combo = "";
         
         document.getElementById('levelDisplay').innerText = currentLevel;
         document.getElementById('scoreDisplay').innerText = overallScore + levelScore;
@@ -474,10 +506,11 @@
 
     function calculateLevelTarget() {
         let baseTgt = LEVEL_BASE_TARGETS[currentLevel - 1];
-        
-        // Dynamically adjust the hardcoded target if user changes base time from 30 seconds
         levelTarget = Math.max(1, Math.round(baseTgt * (timeSetting / 30)));
-        document.getElementById('targetDisplay').innerText = levelTarget;
+        let seconds = (LEVEL_DURATIONS_MS[currentLevel - 1] / 1000).toFixed(1);
+        
+        // Output format: x @ y
+        document.getElementById('targetDisplay').innerText = `${levelTarget} @ ${seconds}`;
     }
 
     function handleStartResume() {
@@ -504,6 +537,8 @@
             document.getElementById('scoreDisplay').innerText = overallScore + levelScore;
             document.getElementById('timeDisplay').innerText = timeLeft;
             forceTargetReset = true;
+            lastTarget1Combo = "";
+            lastTarget2Combo = "";
             
             calculateLevelTarget();
             
@@ -546,6 +581,8 @@
         overallScore = 0;
         levelScore = 0;
         timeLeft = timeSetting;
+        lastTarget1Combo = "";
+        lastTarget2Combo = "";
         
         document.getElementById('levelDisplay').innerText = currentLevel;
         document.getElementById('scoreDisplay').innerText = overallScore;
@@ -583,7 +620,6 @@
                     document.getElementById('scoreDisplay').innerText = overallScore;
                     
                     showOverlay("You Failed", `Level score was: ${finalLevelScore}`, `Level ${currentLevel} Target was: ${levelTarget}`, `Replay Level ${currentLevel}`);
-                    // Updated to use the longer fail sound
                     playSound('level_fail');
                 }
             }
@@ -611,7 +647,6 @@
     }
 
     function getSpeedMultiplier() {
-        // Base normal speed is level 5 (3000ms), determines how fast background shapes refresh
         return LEVEL_DURATIONS_MS[currentLevel - 1] / 3000;
     }
 
@@ -864,19 +899,37 @@
                 forceTargetReset = false;
                 activeItems.forEach(item => item.found = false);
                 
-                let idx1 = Math.floor(Math.random() * NUM_SHAPES);
-                let idx2 = Math.floor(Math.random() * NUM_SHAPES);
-                while (idx1 === idx2) {
+                let idx1, idx2;
+                let isDuplicate = true;
+                
+                // Keep randomizing until we get a set of targets that doesn't exactly match the last set
+                while (isDuplicate) {
+                    idx1 = Math.floor(Math.random() * NUM_SHAPES);
                     idx2 = Math.floor(Math.random() * NUM_SHAPES);
+                    while (idx1 === idx2) {
+                        idx2 = Math.floor(Math.random() * NUM_SHAPES);
+                    }
+                    
+                    let c1 = activeItems[idx1].shape + activeItems[idx1].color;
+                    let c2 = activeItems[idx2].shape + activeItems[idx2].color;
+                    
+                    let matchForward = (c1 === lastTarget1Combo && c2 === lastTarget2Combo);
+                    let matchReverse = (c1 === lastTarget2Combo && c2 === lastTarget1Combo);
+                    
+                    if (!matchForward && !matchReverse) {
+                        isDuplicate = false;
+                        lastTarget1Combo = c1;
+                        lastTarget2Combo = c2;
+                    }
                 }
 
                 target1 = { shape: activeItems[idx1].shape, color: activeItems[idx1].color, found: false };
                 target2 = { shape: activeItems[idx2].shape, color: activeItems[idx2].color, found: false };
 
-                // Apply the exact timing for the current level
                 let finalDuration = LEVEL_DURATIONS_MS[currentLevel - 1];
                 targetsTimeToUpdate = gameTime + finalDuration;
 
+                // GUARANTEE: Force the chosen target items to stay on the board longer than the targets themselves 
                 activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
                 activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
             }
