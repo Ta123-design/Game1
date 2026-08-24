@@ -313,7 +313,7 @@
     let target1 = {shape: allCombos[0].shape, color: allCombos[0].color, found: false};
     let target2 = {shape: allCombos[1].shape, color: allCombos[1].color, found: false};
     
-    // Tracks history to prevent consecutive identical targets
+    // Tracks history to prevent ANY identical targets consecutively
     let lastTarget1Combo = ""; 
     let lastTarget2Combo = ""; 
 
@@ -396,7 +396,7 @@
             oscillator.stop(t + 0.6);
 
         } else if (type === 'level_fail') {
-            // New 3-Note Descending Sad Sound (ta taa taaaa)
+            // New 3-Note Descending Sad Sound (Guitar style throughout)
             
             // Note 1
             let osc1 = audioCtx.createOscillator();
@@ -420,17 +420,16 @@
             osc2.start(t + 0.4); 
             osc2.stop(t + 0.8);
 
-            // Note 3 (sliding down longer)
+            // Note 3 (Steady, longer pitch without slide)
             let osc3 = audioCtx.createOscillator();
             let gain3 = audioCtx.createGain();
             osc3.type = 'sawtooth';
             osc3.frequency.setValueAtTime(200, t + 0.8);
-            osc3.frequency.exponentialRampToValueAtTime(50, t + 2.0); // Slide down
             gain3.gain.setValueAtTime(0.3, t + 0.8);
-            gain3.gain.linearRampToValueAtTime(0, t + 2.0);
+            gain3.gain.linearRampToValueAtTime(0, t + 2.5); // Fades out over a longer time
             osc3.connect(gain3).connect(audioCtx.destination);
             osc3.start(t + 0.8); 
-            osc3.stop(t + 2.0);
+            osc3.stop(t + 2.5);
         }
     }
 
@@ -841,9 +840,6 @@
             gameTime += deltaTime;
         }
 
-        drawTargetUI(target1, "t1Canvas");
-        drawTargetUI(target2, "t2Canvas");
-
         if (gameState !== 'LEVEL_END_WIN') {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -902,7 +898,7 @@
                 let idx1, idx2;
                 let isDuplicate = true;
                 
-                // Keep randomizing until we get a set of targets that doesn't exactly match the last set
+                // Guarantee neither new target shape matches ANY of the previous two target shapes
                 while (isDuplicate) {
                     idx1 = Math.floor(Math.random() * NUM_SHAPES);
                     idx2 = Math.floor(Math.random() * NUM_SHAPES);
@@ -913,10 +909,8 @@
                     let c1 = activeItems[idx1].shape + activeItems[idx1].color;
                     let c2 = activeItems[idx2].shape + activeItems[idx2].color;
                     
-                    let matchForward = (c1 === lastTarget1Combo && c2 === lastTarget2Combo);
-                    let matchReverse = (c1 === lastTarget2Combo && c2 === lastTarget1Combo);
-                    
-                    if (!matchForward && !matchReverse) {
+                    if (c1 !== lastTarget1Combo && c1 !== lastTarget2Combo && 
+                        c2 !== lastTarget1Combo && c2 !== lastTarget2Combo) {
                         isDuplicate = false;
                         lastTarget1Combo = c1;
                         lastTarget2Combo = c2;
@@ -929,7 +923,6 @@
                 let finalDuration = LEVEL_DURATIONS_MS[currentLevel - 1];
                 targetsTimeToUpdate = gameTime + finalDuration;
 
-                // GUARANTEE: Force the chosen target items to stay on the board longer than the targets themselves 
                 activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
                 activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
             }
@@ -969,6 +962,10 @@
                 }
             }
         }
+
+        // Fix #2: Draw targets last so they synchronize on the exact same frame as the playing field
+        drawTargetUI(target1, "t1Canvas");
+        drawTargetUI(target2, "t2Canvas");
 
         requestAnimationFrame(animate);
     }
