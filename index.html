@@ -21,12 +21,10 @@
     }
 
     #controlsBox {
-        background-color: #333;
+        background-color: #1e1e1e; /* Matches the playing area background */
         color: white;
-        padding: 20px 20px 0px 20px; 
-        border-radius: 8px;
-        border-bottom-left-radius: 0; 
-        border-bottom-right-radius: 0;
+        padding: 20px 0px 0px 0px; /* Removed L/R padding so gray panel spans edge-to-edge */
+        border-radius: 8px 8px 0 0; /* Only top corners rounded */
         display: flex;
         flex-direction: column;
         gap: 20px;
@@ -41,31 +39,21 @@
         justify-content: space-between;
         align-items: flex-end; 
         width: 100%;
+        padding: 0 20px; /* Kept padding here so buttons don't touch the edges */
+        box-sizing: border-box;
     }
 
-    @keyframes scrollClouds {
-        0% { background-position: 0 0; }
-        100% { background-position: 400px 0; }
-    }
-    
     .sky-panel {
         display: flex;
         flex-direction: column;
         align-items: center;
-        background-color: #87CEEB; 
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Cpath d='M60,100 Q80,70 110,100 Q140,80 170,100 Q190,120 170,130 L60,130 Q40,120 60,100 Z' fill='%23ffffff' opacity='0.8'/%3E%3Cpath d='M260,60 Q280,30 310,60 Q340,40 370,60 Q390,80 370,90 L260,90 Q240,80 260,60 Z' fill='%23ffffff' opacity='0.6'/%3E%3C/svg%3E");
-        background-size: 400px 200px;
-        background-repeat: repeat-x;
-        animation: scrollClouds 15s linear infinite;
-        padding: 15px;
-        
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        border-bottom-left-radius: 0px;
-        border-bottom-right-radius: 0px;
-        
+        background-color: #555; 
+        padding: 15px 20px; 
+        border-radius: 0px; /* Completely sharp edges to seamlessly join top and bottom areas */
         box-shadow: inset 0px 2px 5px rgba(0,0,0,0.5);
         gap: 15px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .stats-row {
@@ -75,22 +63,33 @@
         width: 100%;
         font-size: 36px;
         font-weight: bold;
-        color: #FF4500; 
+        color: #FFFFFF; /* Alphabet text is White */
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
     }
     
+    /* CSS Grid allows true centering of the middle content while pushing text to the left */
     .targets-row {
-        display: flex;
-        justify-content: center;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
         align-items: center;
-        gap: 30px;
         width: 100%;
+    }
+
+    .target-text-container {
+        justify-self: start;
+        padding-left: 10px; /* Keeps text slightly off the edge */
+    }
+
+    .target-shapes-container {
+        justify-self: center;
+        display: flex;
+        gap: 30px;
     }
 
     .target-text {
         font-size: 30px;
         font-weight: bold;
-        color: #FF4500; 
+        color: #FFFFFF; /* Alphabet text is White */
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     }
 
@@ -128,9 +127,7 @@
         min-height: 500px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
         
-        border-radius: 8px;
-        border-top-left-radius: 0px;
-        border-top-right-radius: 0px;
+        border-radius: 0 0 8px 8px; /* Only bottom corners rounded to match controlsBox */
         
         background-color: #1e1e1e;
         position: relative;
@@ -207,7 +204,7 @@
 <body>
   <h2>Shape Hunter Match</h2>
   <div class="instructions">
-    Look at the <strong>2 Targets</strong> in the sky banner. Click their matches in the moving field below!
+    Look at the <strong>2 Targets</strong> in the banner. Click their matches in the moving field below!
   </div>
   
   <div id="gameContainer">
@@ -248,9 +245,14 @@
             <div>Target: <span id="targetDisplay" style="color: #4CAF50;">0</span></div>
         </div>
         <div class="targets-row">
-            <span class="target-text">FIND THESE TWO:</span>
-            <canvas id="t1Canvas" width="90" height="90"></canvas>
-            <canvas id="t2Canvas" width="90" height="90"></canvas>
+            <div class="target-text-container">
+                <span class="target-text">FIND THESE TWO:</span>
+            </div>
+            <div class="target-shapes-container">
+                <canvas id="t1Canvas" width="90" height="90"></canvas>
+                <canvas id="t2Canvas" width="90" height="90"></canvas>
+            </div>
+            <div></div> <!-- Empty container maintains perfect mathematical centering for the middle grid -->
         </div>
       </div>
 
@@ -963,7 +965,7 @@
             }
         }
 
-        // Fix #2: Draw targets last so they synchronize on the exact same frame as the playing field
+        // Draw targets last so they synchronize on the exact same frame as the playing field
         drawTargetUI(target1, "t1Canvas");
         drawTargetUI(target2, "t2Canvas");
 
