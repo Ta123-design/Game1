@@ -286,8 +286,19 @@
         }
     }
 
-    const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400];
-    const LEVEL_BASE_TARGETS = [5, 6, 7, 7, 8, 9, 9, 9, 10, 10];
+    // --- HARDCODED LEVEL CONFIGURATIONS (Levels 1 to 20) ---
+    const LEVEL_DURATIONS_MS = [
+        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400, // Levels 1-10
+        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400  // Levels 11-20
+    ];
+    const LEVEL_BASE_TARGETS = [
+        5, 6, 7, 7, 8, 9, 9, 9, 10, 10, // Levels 1-10
+        5, 6, 7, 7, 8, 9, 9, 9, 10, 10  // Levels 11-20
+    ];
+    const LEVEL_SPEED_PCT = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,       // Levels 1-10 (Stationary)
+        14.3, 20.0, 25.7, 30.7, 35.7, 39.5, 42.8, 45.7, 48.6, 50.0 // Levels 11-20 (% width per sec)
+    ];
 
     const NUM_SHAPES = 12; 
     const SHAPE_SIZE = 66; 
@@ -322,7 +333,7 @@
     let timeInterval = null;
 
     let particles = []; 
-    let clickEffects = []; // Stores the visual click feedback
+    let clickEffects = []; 
 
     const canvasWrapper = document.getElementById("canvasWrapper");
     const controlsBox = document.getElementById("controlsBox");
@@ -468,7 +479,7 @@
         
         if (gameState === 'LEVEL_END_WIN') {
             currentLevel++;
-            if (currentLevel > 10) currentLevel = 1; 
+            if (currentLevel > 20) currentLevel = 1; 
         }
         
         gameState = 'STOPPED';
@@ -507,7 +518,7 @@
             
             if (gameState === 'LEVEL_END_WIN') {
                 currentLevel++;
-                if (currentLevel > 10) currentLevel = 1;
+                if (currentLevel > 20) currentLevel = 1;
             }
             gameState = 'STOPPED';
             levelScore = 0;
@@ -532,11 +543,14 @@
             for (let i = 0; i < NUM_SHAPES; i++) {
                 let combo = getRandomCombo(i);
                 let pos = getValidPosition(i);
+                let startAngle = Math.random() * Math.PI * 2;
                 activeItems.push({
                     shape: combo.shape,
                     color: combo.color,
                     x: pos.x,
                     y: pos.y,
+                    vx: Math.cos(startAngle),
+                    vy: Math.sin(startAngle),
                     timeToUpdate: gameTime + (Math.random() * 2000),
                     found: false
                 });
@@ -627,8 +641,8 @@
     function changeLevel(change) {
         if (gameState !== 'STOPPED') return;
         currentLevel += change;
-        if (currentLevel < 1) currentLevel = 10;
-        if (currentLevel > 10) currentLevel = 1;
+        if (currentLevel < 1) currentLevel = 20;
+        if (currentLevel > 20) currentLevel = 1;
         document.getElementById("levelDisplay").innerText = currentLevel;
         calculateLevelTarget(); 
     }
@@ -771,7 +785,7 @@
         const clickX = (event.clientX - rect.left) * (canvas.width / rect.width);
         const clickY = (event.clientY - rect.top) * (canvas.height / rect.height);
 
-        // Instantly generate visual crosshair feedback, regardless of game state
+        // Instantly generate visual crosshair and touch area feedback
         clickEffects.push({
             x: clickX,
             y: clickY,
@@ -925,6 +939,65 @@
                 activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
             }
 
+            // --- MOVEMENT LOGIC (Levels 11-20) ---
+            if (gameState === 'PLAYING') {
+                let speedPct = LEVEL_SPEED_PCT[currentLevel - 1];
+                if (speedPct > 0) {
+                    let pxPerSec = (speedPct / 100) * canvas.width;
+                    let stepDist = pxPerSec * (deltaTime / 1000);
+
+                    for (let i = 0; i < activeItems.length; i++) {
+                        let item = activeItems[i];
+                        let ax = 0, ay = 0;
+                        let margin = SHAPE_SIZE * 2; // Margin before walls start pushing back
+                        
+                        // Gentle repulsive force from walls
+                        if (item.x < margin) ax += (margin - item.x) / margin;
+                        if (item.x > canvas.width - margin) ax -= (item.x - (canvas.width - margin)) / margin;
+                        if (item.y < FIELD_MIN_Y + margin) ay += (margin - (item.y - FIELD_MIN_Y)) / margin;
+                        if (item.y > FIELD_MAX_Y - margin) ay -= (item.y - (FIELD_MAX_Y - margin)) / margin;
+
+                        // Repulsion / Swerving from other items
+                        let avoidDist = SHAPE_SIZE * 2.5; 
+                        for (let j = 0; j < activeItems.length; j++) {
+                            if (i === j) continue;
+                            let other = activeItems[j];
+                            let dx = item.x - other.x;
+                            let dy = item.y - other.y;
+                            let dist = Math.sqrt(dx*dx + dy*dy);
+                            
+                            if (dist < avoidDist && dist > 0) {
+                                let force = (avoidDist - dist) / avoidDist;
+                                let dodgeDir = (i > j) ? 1 : -1; // Ensures two shapes consistently swerve around each other
+                                
+                                // Adds straightforward push + perpendicular curve (no sharp stops)
+                                ax += ((dx/dist) - (dy/dist) * dodgeDir * 0.8) * force * 2.0;
+                                ay += ((dy/dist) + (dx/dist) * dodgeDir * 0.8) * force * 2.0;
+                            }
+                        }
+
+                        // Apply turning curve
+                        let turnRate = deltaTime / 150; 
+                        item.vx += ax * turnRate;
+                        item.vy += ay * turnRate;
+
+                        // Re-normalize velocity to strictly maintain assigned speed
+                        let mag = Math.sqrt(item.vx*item.vx + item.vy*item.vy);
+                        if (mag === 0) { item.vx = 1; item.vy = 0; mag = 1; }
+                        item.vx /= mag;
+                        item.vy /= mag;
+
+                        item.x += item.vx * stepDist;
+                        item.y += item.vy * stepDist;
+
+                        // Failsafe physical boundaries
+                        item.x = Math.max(SHAPE_SIZE, Math.min(canvas.width - SHAPE_SIZE, item.x));
+                        item.y = Math.max(FIELD_MIN_Y + SHAPE_SIZE, Math.min(FIELD_MAX_Y - SHAPE_SIZE, item.y));
+                    }
+                }
+            }
+            // -------------------------------------
+
             for (let i = 0; i < activeItems.length; i++) {
                 let item = activeItems[i];
                 
@@ -936,6 +1009,11 @@
                     item.color = newCombo.color;
                     item.x = newPos.x;
                     item.y = newPos.y;
+                    
+                    // Assign a new direction upon respawning
+                    let newAngle = Math.random() * Math.PI * 2;
+                    item.vx = Math.cos(newAngle);
+                    item.vy = Math.sin(newAngle);
                     
                     let baseJumpDelay = 1000 + Math.random() * 2000;
                     item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
