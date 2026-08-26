@@ -21,10 +21,10 @@
     }
 
     #controlsBox {
-        background-color: #1e1e1e; /* Matches the playing area background */
+        background-color: #1e1e1e;
         color: white;
-        padding: 20px 0px 0px 0px; /* Removed L/R padding so gray panel spans edge-to-edge */
-        border-radius: 8px 8px 0 0; /* Only top corners rounded */
+        padding: 20px 0px 0px 0px; 
+        border-radius: 8px 8px 0 0; 
         display: flex;
         flex-direction: column;
         gap: 20px;
@@ -39,7 +39,7 @@
         justify-content: space-between;
         align-items: flex-end; 
         width: 100%;
-        padding: 0 20px; /* Kept padding here so buttons don't touch the edges */
+        padding: 0 20px;
         box-sizing: border-box;
     }
 
@@ -49,7 +49,7 @@
         align-items: center;
         background-color: #555; 
         padding: 15px 20px; 
-        border-radius: 0px; /* Completely sharp edges to seamlessly join top and bottom areas */
+        border-radius: 0px; 
         box-shadow: inset 0px 2px 5px rgba(0,0,0,0.5);
         gap: 15px;
         width: 100%;
@@ -63,11 +63,10 @@
         width: 100%;
         font-size: 36px;
         font-weight: bold;
-        color: #FFFFFF; /* Alphabet text is White */
+        color: #FFFFFF;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8); 
     }
     
-    /* CSS Grid allows true centering of the middle content while pushing text to the left */
     .targets-row {
         display: grid;
         grid-template-columns: 1fr auto 1fr;
@@ -77,7 +76,7 @@
 
     .target-text-container {
         justify-self: start;
-        padding-left: 10px; /* Keeps text slightly off the edge */
+        padding-left: 10px; 
     }
 
     .target-shapes-container {
@@ -89,7 +88,7 @@
     .target-text {
         font-size: 30px;
         font-weight: bold;
-        color: #FFFFFF; /* Alphabet text is White */
+        color: #FFFFFF; 
         text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     }
 
@@ -126,12 +125,11 @@
         min-width: 600px;
         min-height: 500px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
-        
-        border-radius: 0 0 8px 8px; /* Only bottom corners rounded to match controlsBox */
-        
+        border-radius: 0 0 8px 8px; 
         background-color: #1e1e1e;
         position: relative;
         margin-bottom: 30px;
+        touch-action: none; /* Prevents iPhone screen dragging while tapping */
     }
 
     #shapeCanvas {
@@ -252,7 +250,7 @@
                 <canvas id="t1Canvas" width="90" height="90"></canvas>
                 <canvas id="t2Canvas" width="90" height="90"></canvas>
             </div>
-            <div></div> <!-- Empty container maintains perfect mathematical centering for the middle grid -->
+            <div></div> 
         </div>
       </div>
 
@@ -275,14 +273,8 @@
     const ctx = canvas.getContext("2d");
 
     const colors = [
-        "#007AFF", // Blue
-        "#FF0000", // Red 
-        "#FFFF00", // Pure Yellow
-        "#34C759", // Green
-        "#00FFFF", // Cyan
-        "#FFA500", // Pure Vibrant Orange
-        "#9C27B0", // Purple
-        "#FFFFFF"  // White
+        "#007AFF", "#FF0000", "#FFFF00", "#34C759", 
+        "#00FFFF", "#FFA500", "#9C27B0", "#FFFFFF"
     ];
     
     const shapes = ["square", "rectangle", "triangle", "octagon", "pentagon", "circle"];
@@ -294,7 +286,6 @@
         }
     }
 
-    // --- HARDCODED LEVEL CONFIGURATIONS ---
     const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400];
     const LEVEL_BASE_TARGETS = [5, 6, 7, 7, 8, 9, 9, 9, 10, 10];
 
@@ -315,7 +306,6 @@
     let target1 = {shape: allCombos[0].shape, color: allCombos[0].color, found: false};
     let target2 = {shape: allCombos[1].shape, color: allCombos[1].color, found: false};
     
-    // Tracks history to prevent ANY identical targets consecutively
     let lastTarget1Combo = ""; 
     let lastTarget2Combo = ""; 
 
@@ -332,6 +322,7 @@
     let timeInterval = null;
 
     let particles = []; 
+    let clickEffects = []; // Stores the visual click feedback
 
     const canvasWrapper = document.getElementById("canvasWrapper");
     const controlsBox = document.getElementById("controlsBox");
@@ -362,7 +353,6 @@
 
     function playSound(type) {
         initAudio();
-        
         let t = audioCtx.currentTime;
 
         if (type === 'positive' || type === 'win') {
@@ -398,9 +388,6 @@
             oscillator.stop(t + 0.6);
 
         } else if (type === 'level_fail') {
-            // New 3-Note Descending Sad Sound (Guitar style throughout)
-            
-            // Note 1
             let osc1 = audioCtx.createOscillator();
             let gain1 = audioCtx.createGain();
             osc1.type = 'sawtooth';
@@ -411,7 +398,6 @@
             osc1.start(t); 
             osc1.stop(t + 0.4);
 
-            // Note 2
             let osc2 = audioCtx.createOscillator();
             let gain2 = audioCtx.createGain();
             osc2.type = 'sawtooth';
@@ -422,13 +408,12 @@
             osc2.start(t + 0.4); 
             osc2.stop(t + 0.8);
 
-            // Note 3 (Steady, longer pitch without slide)
             let osc3 = audioCtx.createOscillator();
             let gain3 = audioCtx.createGain();
             osc3.type = 'sawtooth';
             osc3.frequency.setValueAtTime(200, t + 0.8);
             gain3.gain.setValueAtTime(0.3, t + 0.8);
-            gain3.gain.linearRampToValueAtTime(0, t + 2.5); // Fades out over a longer time
+            gain3.gain.linearRampToValueAtTime(0, t + 2.5);
             osc3.connect(gain3).connect(audioCtx.destination);
             osc3.start(t + 0.8); 
             osc3.stop(t + 2.5);
@@ -490,6 +475,7 @@
         levelScore = 0;
         timeLeft = timeSetting;
         particles = []; 
+        clickEffects = []; // clear old clicks
         lastTarget1Combo = "";
         lastTarget2Combo = "";
         
@@ -509,8 +495,6 @@
         let baseTgt = LEVEL_BASE_TARGETS[currentLevel - 1];
         levelTarget = Math.max(1, Math.round(baseTgt * (timeSetting / 30)));
         let seconds = (LEVEL_DURATIONS_MS[currentLevel - 1] / 1000).toFixed(1);
-        
-        // Output format: x @ y
         document.getElementById('targetDisplay').innerText = `${levelTarget} @ ${seconds}`;
     }
 
@@ -519,6 +503,7 @@
             document.getElementById('messageOverlay').style.display = 'none';
             stopLoopingHappySound();
             particles = [];
+            clickEffects = [];
             
             if (gameState === 'LEVEL_END_WIN') {
                 currentLevel++;
@@ -575,6 +560,7 @@
         document.getElementById('messageOverlay').style.display = 'none';
         stopLoopingHappySound();
         particles = [];
+        clickEffects = [];
         gameState = 'STOPPED';
         clearInterval(timeInterval);
         
@@ -675,7 +661,8 @@
             context.arc(x, y, size/2, 0, Math.PI * 2);
             context.fill();
         } else if (type === "triangle") {
-            drawPolygonCtx(context, x, y + size/6, size/1.6, 3);
+            // Re-centered to true X/Y coordinates
+            drawPolygonCtx(context, x, y, size/1.6, 3);
         } else if (type === "pentagon") {
             drawPolygonCtx(context, x, y, size/1.75, 5);
         } else if (type === "octagon") {
@@ -709,8 +696,9 @@
         const cy = tCanvas.height / 2;
 
         if (target.found) {
+            let haloRadius = (SHAPE_SIZE / 2) * 2; // Configurable separate size
             tCtx.beginPath();
-            tCtx.arc(cx, cy, SHAPE_SIZE - 2, 0, Math.PI*2); 
+            tCtx.arc(cx, cy, haloRadius, 0, Math.PI*2); 
             tCtx.fillStyle = "rgba(76, 175, 80, 0.4)";
             tCtx.fill();
             tCtx.strokeStyle = "#4CAF50";
@@ -776,17 +764,26 @@
         return {x: canvas.width/2, y: FIELD_MIN_Y + 100}; 
     }
 
-    // --- CLICK EVENTS ---
-    canvas.addEventListener('mousedown', function(event) {
-        if (gameState !== 'PLAYING' || celebrating) return; 
-
+    // --- CLICK EVENTS (Now pointerdown for universal touch/mouse support) ---
+    canvas.addEventListener('pointerdown', function(event) {
         initAudio();
         const rect = canvas.getBoundingClientRect();
         const clickX = (event.clientX - rect.left) * (canvas.width / rect.width);
         const clickY = (event.clientY - rect.top) * (canvas.height / rect.height);
 
+        // Instantly generate visual crosshair feedback, regardless of game state
+        clickEffects.push({
+            x: clickX,
+            y: clickY,
+            timeCreated: performance.now()
+        });
+
+        if (gameState !== 'PLAYING' || celebrating) return; 
+
         let hitCorrect = false;
-        const hitBoxRadius = (SHAPE_SIZE / 2) * 1.5;
+        
+        // Hitbox multiplier increased to 2
+        const hitBoxRadius = (SHAPE_SIZE / 2) * 2;
 
         for (let i = 0; i < activeItems.length; i++) {
             let item = activeItems[i];
@@ -900,7 +897,6 @@
                 let idx1, idx2;
                 let isDuplicate = true;
                 
-                // Guarantee neither new target shape matches ANY of the previous two target shapes
                 while (isDuplicate) {
                     idx1 = Math.floor(Math.random() * NUM_SHAPES);
                     idx2 = Math.floor(Math.random() * NUM_SHAPES);
@@ -953,8 +949,9 @@
             for (let i = 0; i < activeItems.length; i++) {
                 let item = activeItems[i];
                 if (item.found) {
+                    let haloRadius = (SHAPE_SIZE / 2) * 2; // Configurable separate size
                     ctx.beginPath();
-                    ctx.arc(item.x, item.y, SHAPE_SIZE - 2, 0, Math.PI*2);
+                    ctx.arc(item.x, item.y, haloRadius, 0, Math.PI*2);
                     ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
                     ctx.fill();
                     ctx.strokeStyle = "#4CAF50";
@@ -964,8 +961,45 @@
                 }
             }
         }
+        
+        // --- DRAW CROSSHAIR & FINGER TOUCH AREA CLICK EFFECTS ---
+        for (let i = clickEffects.length - 1; i >= 0; i--) {
+            let effect = clickEffects[i];
+            let age = timestamp - effect.timeCreated;
+            let duration = 1000; // Lives for 1 second
+            
+            if (age >= duration) {
+                clickEffects.splice(i, 1);
+            } else {
+                ctx.save();
+                ctx.globalAlpha = 1 - (age / duration); // Slowly fades out
+                
+                // Draw the Finger Touch Area (Transparent Circle)
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, 35, 0, Math.PI * 2); // 35px radius representing a finger size
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+                ctx.fill();
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-        // Draw targets last so they synchronize on the exact same frame as the playing field
+                // Draw the Crosshair on top
+                ctx.strokeStyle = "#FFFFFF";
+                ctx.lineWidth = 4;
+                ctx.shadowColor = "#000000"; // Dropshadow for contrast against light shapes
+                ctx.shadowBlur = 4;
+                
+                ctx.beginPath();
+                ctx.moveTo(effect.x - 15, effect.y);
+                ctx.lineTo(effect.x + 15, effect.y);
+                ctx.moveTo(effect.x, effect.y - 15);
+                ctx.lineTo(effect.x, effect.y + 15);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+        }
+
         drawTargetUI(target1, "t1Canvas");
         drawTargetUI(target2, "t2Canvas");
 
