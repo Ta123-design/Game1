@@ -129,7 +129,7 @@
         background-color: #1e1e1e;
         position: relative;
         margin-bottom: 30px;
-        touch-action: none; /* Prevents iPhone screen dragging while tapping */
+        touch-action: none; 
     }
 
     #shapeCanvas {
@@ -286,18 +286,31 @@
         }
     }
 
-    // --- HARDCODED LEVEL CONFIGURATIONS (Levels 1 to 20) ---
+    // --- HARDCODED LEVEL CONFIGURATIONS (Levels 1 to 30) ---
     const LEVEL_DURATIONS_MS = [
         5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400, // Levels 1-10
-        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400  // Levels 11-20
+        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400, // Levels 11-20
+        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400  // Levels 21-30
     ];
     const LEVEL_BASE_TARGETS = [
         5, 6, 7, 7, 8, 9, 9, 9, 10, 10, // Levels 1-10
-        5, 6, 7, 7, 8, 9, 9, 9, 10, 10  // Levels 11-20
+        5, 6, 7, 7, 8, 9, 9, 9, 10, 10, // Levels 11-20
+        5, 6, 7, 7, 8, 9, 9, 9, 10, 10  // Levels 21-30
     ];
     const LEVEL_SPEED_PCT = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,       // Levels 1-10 (Stationary)
-        14.3, 20.0, 25.7, 30.7, 35.7, 39.5, 42.8, 45.7, 48.6, 50.0 // Levels 11-20 (% width per sec)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
+        14.3, 20.0, 25.7, 30.7, 35.7, 39.5, 42.8, 45.7, 48.6, 50.0, // Levels 11-20
+        14.3, 20.0, 25.7, 30.7, 35.7, 39.5, 42.8, 45.7, 48.6, 50.0  // Levels 21-30
+    ];
+    const LEVEL_DISAPPEAR_COUNTS = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 11-20
+        4, 4, 4, 4, 4, 3, 3, 3, 3, 3  // Levels 21-30
+    ];
+    const LEVEL_DISAPPEAR_TIMES = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 11-20
+        0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.3, 0.3, 0.3, 0.3 // Levels 21-30
     ];
 
     const NUM_SHAPES = 12; 
@@ -479,7 +492,7 @@
         
         if (gameState === 'LEVEL_END_WIN') {
             currentLevel++;
-            if (currentLevel > 20) currentLevel = 1; 
+            if (currentLevel > 30) currentLevel = 1; 
         }
         
         gameState = 'STOPPED';
@@ -518,7 +531,7 @@
             
             if (gameState === 'LEVEL_END_WIN') {
                 currentLevel++;
-                if (currentLevel > 20) currentLevel = 1;
+                if (currentLevel > 30) currentLevel = 1;
             }
             gameState = 'STOPPED';
             levelScore = 0;
@@ -552,6 +565,7 @@
                     vx: Math.cos(startAngle),
                     vy: Math.sin(startAngle),
                     timeToUpdate: gameTime + (Math.random() * 2000),
+                    spawnTime: gameTime, // Used for teleporting interval sync
                     found: false
                 });
             }
@@ -641,8 +655,8 @@
     function changeLevel(change) {
         if (gameState !== 'STOPPED') return;
         currentLevel += change;
-        if (currentLevel < 1) currentLevel = 20;
-        if (currentLevel > 20) currentLevel = 1;
+        if (currentLevel < 1) currentLevel = 30;
+        if (currentLevel > 30) currentLevel = 1;
         document.getElementById("levelDisplay").innerText = currentLevel;
         calculateLevelTarget(); 
     }
@@ -710,7 +724,7 @@
         const cy = tCanvas.height / 2;
 
         if (target.found) {
-            let haloRadius = (SHAPE_SIZE / 2) * 2; // Configurable separate size
+            let haloRadius = (SHAPE_SIZE / 2) * 2; 
             tCtx.beginPath();
             tCtx.arc(cx, cy, haloRadius, 0, Math.PI*2); 
             tCtx.fillStyle = "rgba(76, 175, 80, 0.4)";
@@ -778,7 +792,7 @@
         return {x: canvas.width/2, y: FIELD_MIN_Y + 100}; 
     }
 
-    // --- CLICK EVENTS (Now pointerdown for universal touch/mouse support) ---
+    // --- CLICK EVENTS ---
     canvas.addEventListener('pointerdown', function(event) {
         initAudio();
         const rect = canvas.getBoundingClientRect();
@@ -843,6 +857,32 @@
             playSound('negative'); 
         }
     });
+
+    // --- HELPER FOR TELEPORTING LOGIC ---
+    function getRenderColor(item, currentLevel, gameTime) {
+        let renderColor = item.color;
+        let nTimes = LEVEL_DISAPPEAR_COUNTS[currentLevel - 1];
+        
+        if (nTimes > 0 && item.spawnTime !== undefined) {
+            let disTimeMs = LEVEL_DISAPPEAR_TIMES[currentLevel - 1] * 1000;
+            let challengeDur = LEVEL_DURATIONS_MS[currentLevel - 1];
+            // interval formula from prompt: TotalTime / (N + 1)
+            let interval = challengeDur / (nTimes + 1); 
+            
+            let age = gameTime - item.spawnTime;
+            let cycle = Math.floor(age / interval);
+            
+            // Only disappear up to N times
+            if (cycle < nTimes) {
+                let modAge = age % interval;
+                // Inclusive logic: it disappears at the *end* of the interval window
+                if (modAge > (interval - disTimeMs)) {
+                    renderColor = "#1e1e1e"; // paint the same color as the background (black)
+                }
+            }
+        }
+        return renderColor;
+    }
 
     // --- MAIN ANIMATION LOOP ---
     function animate(timestamp) {
@@ -939,7 +979,7 @@
                 activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
             }
 
-            // --- MOVEMENT LOGIC (Levels 11-20) ---
+            // --- MOVEMENT LOGIC ---
             if (gameState === 'PLAYING') {
                 let speedPct = LEVEL_SPEED_PCT[currentLevel - 1];
                 if (speedPct > 0) {
@@ -949,15 +989,13 @@
                     for (let i = 0; i < activeItems.length; i++) {
                         let item = activeItems[i];
                         let ax = 0, ay = 0;
-                        let margin = SHAPE_SIZE * 2; // Margin before walls start pushing back
+                        let margin = SHAPE_SIZE * 2; 
                         
-                        // Gentle repulsive force from walls
                         if (item.x < margin) ax += (margin - item.x) / margin;
                         if (item.x > canvas.width - margin) ax -= (item.x - (canvas.width - margin)) / margin;
                         if (item.y < FIELD_MIN_Y + margin) ay += (margin - (item.y - FIELD_MIN_Y)) / margin;
                         if (item.y > FIELD_MAX_Y - margin) ay -= (item.y - (FIELD_MAX_Y - margin)) / margin;
 
-                        // Repulsion / Swerving from other items
                         let avoidDist = SHAPE_SIZE * 2.5; 
                         for (let j = 0; j < activeItems.length; j++) {
                             if (i === j) continue;
@@ -968,20 +1006,16 @@
                             
                             if (dist < avoidDist && dist > 0) {
                                 let force = (avoidDist - dist) / avoidDist;
-                                let dodgeDir = (i > j) ? 1 : -1; // Ensures two shapes consistently swerve around each other
-                                
-                                // Adds straightforward push + perpendicular curve (no sharp stops)
+                                let dodgeDir = (i > j) ? 1 : -1; 
                                 ax += ((dx/dist) - (dy/dist) * dodgeDir * 0.8) * force * 2.0;
                                 ay += ((dy/dist) + (dx/dist) * dodgeDir * 0.8) * force * 2.0;
                             }
                         }
 
-                        // Apply turning curve
                         let turnRate = deltaTime / 150; 
                         item.vx += ax * turnRate;
                         item.vy += ay * turnRate;
 
-                        // Re-normalize velocity to strictly maintain assigned speed
                         let mag = Math.sqrt(item.vx*item.vx + item.vy*item.vy);
                         if (mag === 0) { item.vx = 1; item.vy = 0; mag = 1; }
                         item.vx /= mag;
@@ -990,7 +1024,6 @@
                         item.x += item.vx * stepDist;
                         item.y += item.vy * stepDist;
 
-                        // Failsafe physical boundaries
                         item.x = Math.max(SHAPE_SIZE, Math.min(canvas.width - SHAPE_SIZE, item.x));
                         item.y = Math.max(FIELD_MIN_Y + SHAPE_SIZE, Math.min(FIELD_MAX_Y - SHAPE_SIZE, item.y));
                     }
@@ -1010,24 +1043,26 @@
                     item.x = newPos.x;
                     item.y = newPos.y;
                     
-                    // Assign a new direction upon respawning
                     let newAngle = Math.random() * Math.PI * 2;
                     item.vx = Math.cos(newAngle);
                     item.vy = Math.sin(newAngle);
                     
                     let baseJumpDelay = 1000 + Math.random() * 2000;
                     item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
+                    item.spawnTime = gameTime; // Reset for teleport logic
                 }
                 
                 if (!item.found) {
-                    drawShape(item.shape, item.color, item.x, item.y);
+                    let renderColor = getRenderColor(item, currentLevel, gameTime);
+                    drawShape(item.shape, renderColor, item.x, item.y);
                 }
             }
 
             for (let i = 0; i < activeItems.length; i++) {
                 let item = activeItems[i];
                 if (item.found) {
-                    let haloRadius = (SHAPE_SIZE / 2) * 2; // Configurable separate size
+                    let renderColor = getRenderColor(item, currentLevel, gameTime);
+                    let haloRadius = (SHAPE_SIZE / 2) * 2;
                     ctx.beginPath();
                     ctx.arc(item.x, item.y, haloRadius, 0, Math.PI*2);
                     ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
@@ -1035,7 +1070,7 @@
                     ctx.strokeStyle = "#4CAF50";
                     ctx.lineWidth = 4;
                     ctx.stroke();
-                    drawShape(item.shape, item.color, item.x, item.y);
+                    drawShape(item.shape, renderColor, item.x, item.y);
                 }
             }
         }
@@ -1044,27 +1079,25 @@
         for (let i = clickEffects.length - 1; i >= 0; i--) {
             let effect = clickEffects[i];
             let age = timestamp - effect.timeCreated;
-            let duration = 1000; // Lives for 1 second
+            let duration = 1000; 
             
             if (age >= duration) {
                 clickEffects.splice(i, 1);
             } else {
                 ctx.save();
-                ctx.globalAlpha = 1 - (age / duration); // Slowly fades out
+                ctx.globalAlpha = 1 - (age / duration); 
                 
-                // Draw the Finger Touch Area (Transparent Circle)
                 ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 35, 0, Math.PI * 2); // 35px radius representing a finger size
+                ctx.arc(effect.x, effect.y, 35, 0, Math.PI * 2); 
                 ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
                 ctx.fill();
                 ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // Draw the Crosshair on top
                 ctx.strokeStyle = "#FFFFFF";
                 ctx.lineWidth = 4;
-                ctx.shadowColor = "#000000"; // Dropshadow for contrast against light shapes
+                ctx.shadowColor = "#000000"; 
                 ctx.shadowBlur = 4;
                 
                 ctx.beginPath();
