@@ -129,7 +129,7 @@
         background-color: #1e1e1e;
         position: relative;
         margin-bottom: 30px;
-        touch-action: none; 
+        touch-action: none; /* Prevents iPhone screen dragging while tapping */
     }
 
     #shapeCanvas {
@@ -286,32 +286,8 @@
         }
     }
 
-    // --- HARDCODED LEVEL CONFIGURATIONS (Levels 1 to 30) ---
-    const LEVEL_DURATIONS_MS = [
-        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400, // Levels 1-10
-        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400, // Levels 11-20
-        5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400  // Levels 21-30
-    ];
-    const LEVEL_BASE_TARGETS = [
-        5, 6, 7, 7, 8, 9, 9, 9, 10, 10, // Levels 1-10
-        5, 6, 7, 7, 8, 9, 9, 9, 10, 10, // Levels 11-20
-        5, 6, 7, 7, 8, 9, 9, 9, 10, 10  // Levels 21-30
-    ];
-    const LEVEL_SPEED_PCT = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
-        14.3, 20.0, 25.7, 30.7, 35.7, 39.5, 42.8, 45.7, 48.6, 50.0, // Levels 11-20
-        14.3, 20.0, 25.7, 30.7, 35.7, 39.5, 42.8, 45.7, 48.6, 50.0  // Levels 21-30
-    ];
-    const LEVEL_DISAPPEAR_COUNTS = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 11-20
-        4, 4, 4, 4, 4, 3, 3, 3, 3, 3  // Levels 21-30
-    ];
-    const LEVEL_DISAPPEAR_TIMES = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 11-20
-        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 // Levels 21-30 (Updated to 0.2 globally for now)
-    ];
+    const LEVEL_DURATIONS_MS = [5000, 4400, 3900, 3400, 3000, 2700, 2600, 2500, 2500, 2400];
+    const LEVEL_BASE_TARGETS = [5, 6, 7, 7, 8, 9, 9, 9, 10, 10];
 
     const NUM_SHAPES = 12; 
     const SHAPE_SIZE = 66; 
@@ -346,7 +322,7 @@
     let timeInterval = null;
 
     let particles = []; 
-    let clickEffects = []; 
+    let clickEffects = []; // Stores the visual click feedback
 
     const canvasWrapper = document.getElementById("canvasWrapper");
     const controlsBox = document.getElementById("controlsBox");
@@ -492,7 +468,7 @@
         
         if (gameState === 'LEVEL_END_WIN') {
             currentLevel++;
-            if (currentLevel > 30) currentLevel = 1; 
+            if (currentLevel > 10) currentLevel = 1; 
         }
         
         gameState = 'STOPPED';
@@ -531,7 +507,7 @@
             
             if (gameState === 'LEVEL_END_WIN') {
                 currentLevel++;
-                if (currentLevel > 30) currentLevel = 1;
+                if (currentLevel > 10) currentLevel = 1;
             }
             gameState = 'STOPPED';
             levelScore = 0;
@@ -556,16 +532,12 @@
             for (let i = 0; i < NUM_SHAPES; i++) {
                 let combo = getRandomCombo(i);
                 let pos = getValidPosition(i);
-                let startAngle = Math.random() * Math.PI * 2;
                 activeItems.push({
                     shape: combo.shape,
                     color: combo.color,
                     x: pos.x,
                     y: pos.y,
-                    vx: Math.cos(startAngle),
-                    vy: Math.sin(startAngle),
                     timeToUpdate: gameTime + (Math.random() * 2000),
-                    spawnTime: gameTime, // Used for teleporting interval sync
                     found: false
                 });
             }
@@ -655,8 +627,8 @@
     function changeLevel(change) {
         if (gameState !== 'STOPPED') return;
         currentLevel += change;
-        if (currentLevel < 1) currentLevel = 30;
-        if (currentLevel > 30) currentLevel = 1;
+        if (currentLevel < 1) currentLevel = 10;
+        if (currentLevel > 10) currentLevel = 1;
         document.getElementById("levelDisplay").innerText = currentLevel;
         calculateLevelTarget(); 
     }
@@ -724,7 +696,7 @@
         const cy = tCanvas.height / 2;
 
         if (target.found) {
-            let haloRadius = (SHAPE_SIZE / 2) * 2; 
+            let haloRadius = (SHAPE_SIZE / 2) * 2; // Configurable separate size
             tCtx.beginPath();
             tCtx.arc(cx, cy, haloRadius, 0, Math.PI*2); 
             tCtx.fillStyle = "rgba(76, 175, 80, 0.4)";
@@ -792,14 +764,14 @@
         return {x: canvas.width/2, y: FIELD_MIN_Y + 100}; 
     }
 
-    // --- CLICK EVENTS ---
+    // --- CLICK EVENTS (Now pointerdown for universal touch/mouse support) ---
     canvas.addEventListener('pointerdown', function(event) {
         initAudio();
         const rect = canvas.getBoundingClientRect();
         const clickX = (event.clientX - rect.left) * (canvas.width / rect.width);
         const clickY = (event.clientY - rect.top) * (canvas.height / rect.height);
 
-        // Instantly generate visual crosshair and touch area feedback
+        // Instantly generate visual crosshair feedback, regardless of game state
         clickEffects.push({
             x: clickX,
             y: clickY,
@@ -857,30 +829,6 @@
             playSound('negative'); 
         }
     });
-
-    // --- HELPER FOR TELEPORTING LOGIC ---
-    function getRenderColor(item, currentLevel, gameTime) {
-        let renderColor = item.color;
-        let nTimes = LEVEL_DISAPPEAR_COUNTS[currentLevel - 1];
-        
-        if (nTimes > 0 && item.spawnTime !== undefined) {
-            let disTimeMs = LEVEL_DISAPPEAR_TIMES[currentLevel - 1] * 1000;
-            let challengeDur = LEVEL_DURATIONS_MS[currentLevel - 1];
-            
-            // interval formula from prompt: TotalTime / (N + 1)
-            let interval = challengeDur / (nTimes + 1); 
-            
-            let age = gameTime - item.spawnTime;
-            let modAge = age % interval;
-            
-            // Removing the (cycle < nTimes) cap so that older shapes seamlessly continue to blink
-            // It safely disappears at the *end* of the interval window
-            if (modAge > (interval - disTimeMs)) {
-                renderColor = "#1e1e1e"; // paint the same color as the background (black)
-            }
-        }
-        return renderColor;
-    }
 
     // --- MAIN ANIMATION LOOP ---
     function animate(timestamp) {
@@ -975,63 +923,7 @@
 
                 activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
                 activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
-                
-                // IMPORTANT BUG FIX: Reset the spawn time for the exact targets to guarantee their intervals synchronize with the challenge!
-                activeItems[idx1].spawnTime = gameTime;
-                activeItems[idx2].spawnTime = gameTime;
             }
-
-            // --- MOVEMENT LOGIC ---
-            if (gameState === 'PLAYING') {
-                let speedPct = LEVEL_SPEED_PCT[currentLevel - 1];
-                if (speedPct > 0) {
-                    let pxPerSec = (speedPct / 100) * canvas.width;
-                    let stepDist = pxPerSec * (deltaTime / 1000);
-
-                    for (let i = 0; i < activeItems.length; i++) {
-                        let item = activeItems[i];
-                        let ax = 0, ay = 0;
-                        let margin = SHAPE_SIZE * 2; 
-                        
-                        if (item.x < margin) ax += (margin - item.x) / margin;
-                        if (item.x > canvas.width - margin) ax -= (item.x - (canvas.width - margin)) / margin;
-                        if (item.y < FIELD_MIN_Y + margin) ay += (margin - (item.y - FIELD_MIN_Y)) / margin;
-                        if (item.y > FIELD_MAX_Y - margin) ay -= (item.y - (FIELD_MAX_Y - margin)) / margin;
-
-                        let avoidDist = SHAPE_SIZE * 2.5; 
-                        for (let j = 0; j < activeItems.length; j++) {
-                            if (i === j) continue;
-                            let other = activeItems[j];
-                            let dx = item.x - other.x;
-                            let dy = item.y - other.y;
-                            let dist = Math.sqrt(dx*dx + dy*dy);
-                            
-                            if (dist < avoidDist && dist > 0) {
-                                let force = (avoidDist - dist) / avoidDist;
-                                let dodgeDir = (i > j) ? 1 : -1; 
-                                ax += ((dx/dist) - (dy/dist) * dodgeDir * 0.8) * force * 2.0;
-                                ay += ((dy/dist) + (dx/dist) * dodgeDir * 0.8) * force * 2.0;
-                            }
-                        }
-
-                        let turnRate = deltaTime / 150; 
-                        item.vx += ax * turnRate;
-                        item.vy += ay * turnRate;
-
-                        let mag = Math.sqrt(item.vx*item.vx + item.vy*item.vy);
-                        if (mag === 0) { item.vx = 1; item.vy = 0; mag = 1; }
-                        item.vx /= mag;
-                        item.vy /= mag;
-
-                        item.x += item.vx * stepDist;
-                        item.y += item.vy * stepDist;
-
-                        item.x = Math.max(SHAPE_SIZE, Math.min(canvas.width - SHAPE_SIZE, item.x));
-                        item.y = Math.max(FIELD_MIN_Y + SHAPE_SIZE, Math.min(FIELD_MAX_Y - SHAPE_SIZE, item.y));
-                    }
-                }
-            }
-            // -------------------------------------
 
             for (let i = 0; i < activeItems.length; i++) {
                 let item = activeItems[i];
@@ -1045,26 +937,19 @@
                     item.x = newPos.x;
                     item.y = newPos.y;
                     
-                    let newAngle = Math.random() * Math.PI * 2;
-                    item.vx = Math.cos(newAngle);
-                    item.vy = Math.sin(newAngle);
-                    
                     let baseJumpDelay = 1000 + Math.random() * 2000;
                     item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
-                    item.spawnTime = gameTime; // Reset for teleport logic on individual shape respawns
                 }
                 
                 if (!item.found) {
-                    let renderColor = getRenderColor(item, currentLevel, gameTime);
-                    drawShape(item.shape, renderColor, item.x, item.y);
+                    drawShape(item.shape, item.color, item.x, item.y);
                 }
             }
 
             for (let i = 0; i < activeItems.length; i++) {
                 let item = activeItems[i];
                 if (item.found) {
-                    let renderColor = getRenderColor(item, currentLevel, gameTime);
-                    let haloRadius = (SHAPE_SIZE / 2) * 2;
+                    let haloRadius = (SHAPE_SIZE / 2) * 2; // Configurable separate size
                     ctx.beginPath();
                     ctx.arc(item.x, item.y, haloRadius, 0, Math.PI*2);
                     ctx.fillStyle = "rgba(76, 175, 80, 0.4)";
@@ -1072,34 +957,25 @@
                     ctx.strokeStyle = "#4CAF50";
                     ctx.lineWidth = 4;
                     ctx.stroke();
-                    drawShape(item.shape, renderColor, item.x, item.y);
+                    drawShape(item.shape, item.color, item.x, item.y);
                 }
             }
         }
         
-        // --- DRAW CROSSHAIR & FINGER TOUCH AREA CLICK EFFECTS ---
+        // --- DRAW CROSSHAIR CLICK EFFECTS ---
         for (let i = clickEffects.length - 1; i >= 0; i--) {
             let effect = clickEffects[i];
             let age = timestamp - effect.timeCreated;
-            let duration = 1000; 
+            let duration = 1000; // Lives for 1 second
             
             if (age >= duration) {
                 clickEffects.splice(i, 1);
             } else {
                 ctx.save();
-                ctx.globalAlpha = 1 - (age / duration); 
-                
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 35, 0, Math.PI * 2); 
-                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-                ctx.fill();
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
+                ctx.globalAlpha = 1 - (age / duration); // Slowly fades out
                 ctx.strokeStyle = "#FFFFFF";
                 ctx.lineWidth = 4;
-                ctx.shadowColor = "#000000"; 
+                ctx.shadowColor = "#000000"; // Dropshadow for contrast against light shapes
                 ctx.shadowBlur = 4;
                 
                 ctx.beginPath();
@@ -1108,7 +984,6 @@
                 ctx.moveTo(effect.x, effect.y - 15);
                 ctx.lineTo(effect.x, effect.y + 15);
                 ctx.stroke();
-                
                 ctx.restore();
             }
         }
