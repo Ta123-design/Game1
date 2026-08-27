@@ -310,7 +310,7 @@
     const LEVEL_DISAPPEAR_TIMES = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 11-20
-        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 // Levels 21-30
+        0.25, 0.25, 0.25, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 // Levels 21-30
     ];
 
     const NUM_SHAPES = 12; 
@@ -565,7 +565,7 @@
                     vx: Math.cos(startAngle),
                     vy: Math.sin(startAngle),
                     timeToUpdate: gameTime + (Math.random() * 2000),
-                    spawnTime: gameTime,
+                    spawnTime: gameTime, // Used for teleporting interval sync
                     found: false
                 });
             }
@@ -882,7 +882,9 @@
                 let modAge = age % interval;
                 // Inclusive logic: it disappears at the *end* of the interval window
                 if (modAge > (interval - disTimeMs)) {
-                    renderColor = "#808080"; // Paint 50% Gray for debugging
+                    // Feature left configurable here: Set hiddenColor to anything (e.g. "rgba(0,0,0,0.5)")
+                    let hiddenColor = "#1e1e1e"; // #1e1e1e is the exact game background color
+                    renderColor = hiddenColor;
                 }
             }
         }
@@ -1058,6 +1060,7 @@
                     
                     let baseJumpDelay = 1000 + Math.random() * 2000;
                     item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
+                    item.spawnTime = gameTime; // Reset for teleport logic on individual shape respawns
                 }
                 
                 if (!item.found) {
