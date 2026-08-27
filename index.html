@@ -310,7 +310,7 @@
     const LEVEL_DISAPPEAR_TIMES = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 1-10
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Levels 11-20
-        0.5, 0.5, 0.5, 0.4, 0.4, 0.4, 0.3, 0.3, 0.3, 0.3 // Levels 21-30
+        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 // Levels 21-30 (Updated to 0.2 globally for now)
     ];
 
     const NUM_SHAPES = 12; 
@@ -866,19 +866,17 @@
         if (nTimes > 0 && item.spawnTime !== undefined) {
             let disTimeMs = LEVEL_DISAPPEAR_TIMES[currentLevel - 1] * 1000;
             let challengeDur = LEVEL_DURATIONS_MS[currentLevel - 1];
+            
             // interval formula from prompt: TotalTime / (N + 1)
             let interval = challengeDur / (nTimes + 1); 
             
             let age = gameTime - item.spawnTime;
-            let cycle = Math.floor(age / interval);
+            let modAge = age % interval;
             
-            // Only disappear up to N times
-            if (cycle < nTimes) {
-                let modAge = age % interval;
-                // Inclusive logic: it disappears at the *end* of the interval window
-                if (modAge > (interval - disTimeMs)) {
-                    renderColor = "#1e1e1e"; // paint the same color as the background (black)
-                }
+            // Removing the (cycle < nTimes) cap so that older shapes seamlessly continue to blink
+            // It safely disappears at the *end* of the interval window
+            if (modAge > (interval - disTimeMs)) {
+                renderColor = "#1e1e1e"; // paint the same color as the background (black)
             }
         }
         return renderColor;
@@ -977,6 +975,10 @@
 
                 activeItems[idx1].timeToUpdate = gameTime + finalDuration + 500;
                 activeItems[idx2].timeToUpdate = gameTime + finalDuration + 500;
+                
+                // IMPORTANT BUG FIX: Reset the spawn time for the exact targets to guarantee their intervals synchronize with the challenge!
+                activeItems[idx1].spawnTime = gameTime;
+                activeItems[idx2].spawnTime = gameTime;
             }
 
             // --- MOVEMENT LOGIC ---
@@ -1049,7 +1051,7 @@
                     
                     let baseJumpDelay = 1000 + Math.random() * 2000;
                     item.timeToUpdate = gameTime + (baseJumpDelay * speedMultiplier);
-                    item.spawnTime = gameTime; // Reset for teleport logic
+                    item.spawnTime = gameTime; // Reset for teleport logic on individual shape respawns
                 }
                 
                 if (!item.found) {
